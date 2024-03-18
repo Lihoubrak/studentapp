@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,21 +12,32 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from "@react-navigation/native";
 import Checkbox from "expo-checkbox";
 import { ModalReportProblem } from "../../components";
+import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 const DormitoryScreen = () => {
   const navigation = useNavigation();
-
-  // State for checkbox toggle
+  const { auth } = useAuthContext();
   const [toggleCheckBox, setToggleCheckBox] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  // Sample data for occupants
-  const occupantsData = [
-    { id: 1, name: "John Doe" },
-    { id: 2, name: "Jane Smith" },
-    { id: 3, name: "Alice Johnson" },
-  ];
+  const [member, setMember] = useState([]);
+  useEffect(() => {
+    const fetchMember = async () => {
+      try {
+        const res = await axios.get("http://192.168.1.4:3000/rooms/v3/member", {
+          headers: {
+            Authorization: `Bearer ${auth}`,
+          },
+        });
+        setMember(res.data);
+      } catch (error) {}
+    };
+    if (auth) {
+      fetchMember();
+    }
+  }, [auth]);
   const handleProfileClick = (item) => {
-    navigation.navigate("detail");
+    navigation.navigate("detail", { userId: item.id });
   };
   // Function to render each occupant item
   const renderOccupantItem = ({ item }) => (
@@ -34,11 +45,8 @@ const DormitoryScreen = () => {
       style={styles.occupantItem}
       onPress={() => handleProfileClick(item)}
     >
-      <Image
-        style={styles.profile}
-        source={require("../../assets/icons/profile.jpg")}
-      />
-      <Text style={styles.occupantName}>{item.name}</Text>
+      <Image style={styles.profile} source={{ uri: item.avatar }} />
+      <Text style={styles.occupantName}>{item.username}</Text>
     </TouchableOpacity>
   );
 
@@ -56,18 +64,21 @@ const DormitoryScreen = () => {
       <View style={styles.contentContainer}>
         <View style={styles.dormInfoContainer}>
           <MaterialCommunityIcons name="bed" size={50} color="#FF5733" />
-          <Text style={styles.dormTitle}>Dormitory A3</Text>
+          <Text style={styles.dormTitle}>
+            Dormitory {member[0]?.Room?.Dormitory.dormName}
+          </Text>
         </View>
 
-        <Text style={styles.info}>Room: 101</Text>
+        <Text style={styles.info}>Room: {member[0]?.Room?.roomNumber}</Text>
         <Text style={styles.info}>
-          Number of occupants: {occupantsData.length}
+          Number of occupants: {member[0]?.Room?.numberOfStudents}
         </Text>
         <FlatList
-          data={occupantsData}
+          data={member}
           renderItem={renderOccupantItem}
           keyExtractor={(item) => item.id.toString()}
         />
+
         <View style={styles.supportContainer}>
           <Text style={styles.supportText}>
             Materials Provided for Students:
@@ -152,21 +163,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
   },
   headerContainer: {
-    backgroundColor: "#4E74F9",
+    backgroundColor: "#4e74f9",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    color: "#FFFFFF",
+    fontSize: 18,
+    color: "white",
     fontWeight: "bold",
     marginLeft: 10,
   },
   backButton: {
-    marginRight: 10,
+    position: "absolute",
+    left: 20,
+    top: 50,
   },
   contentContainer: {
     paddingHorizontal: 20,

@@ -1,5 +1,6 @@
-import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -12,6 +13,20 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 
 const ProfileDetailStudent = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { userId } = route.params;
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const fetchUser = async () => {
+      const res = await axios.get(
+        `http://192.168.1.4:3000/users/v1/${userId}/detail`
+      );
+      setUser(res.data);
+    };
+    if (userId) {
+      fetchUser();
+    }
+  }, [userId]);
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -31,28 +46,26 @@ const ProfileDetailStudent = () => {
           />
         </View>
         <View style={styles.profileContainer}>
-          <Image
-            source={require("../../assets/icons/profile.jpg")}
-            style={styles.profileImage}
-          />
+          <Image source={{ uri: user?.avatar }} style={styles.profileImage} />
           <View style={styles.profileTextContainer}>
-            <Text style={styles.profileTextName}>Brak Lihou</Text>
-            <Text style={styles.profileText}>Phone: 200</Text>
-            <Text style={styles.profileText}>Email: dfdffdgfgdfgfgfdgfdf</Text>
+            <Text style={styles.profileTextName}>
+              {user?.firstName} {user?.lastName}
+            </Text>
+            <Text style={styles.profileText}>Phone: {user?.phoneNumber}</Text>
+            <Text style={styles.profileText}>Email:{user?.email}</Text>
           </View>
         </View>
         <View style={styles.detailsContainer}>
           <View style={styles.detailItem}>
             <MaterialCommunityIcons name="home" size={20} color="#FF5733" />
             <Text style={styles.detailLabel}>ROOM:</Text>
-            <Text style={styles.detailValue}>101</Text>
+            <Text style={styles.detailValue}>{user?.Room?.roomNumber}</Text>
           </View>
           <View style={styles.detailItem}>
             <MaterialCommunityIcons name="school" size={20} color="#4682B4" />
             <Text style={styles.detailLabel}>SCHOOL:</Text>
             <Text style={styles.detailValue}>
-              By setting the width of detailItem to windowWidth - 40, you ensure
-              that each item occupies the same width, making them equal
+              {user?.Major?.School.schoolName}
             </Text>
           </View>
           <View style={styles.detailItem}>
@@ -71,7 +84,7 @@ const ProfileDetailStudent = () => {
               color="#FFA500"
             />
             <Text style={styles.detailLabel}>MAJOR:</Text>
-            <Text style={styles.detailValue}>Computer Science</Text>
+            <Text style={styles.detailValue}>{user?.Major?.majorName}</Text>
           </View>
         </View>
       </View>
@@ -94,12 +107,18 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
-    color: "#FFFFFF",
+    color: "white",
     fontWeight: "bold",
     marginLeft: 10,
+  },
+  backButton: {
+    position: "absolute",
+    left: 20,
+    top: 50,
   },
   contentContainer: {
     flex: 1,

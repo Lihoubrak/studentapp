@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,108 +10,68 @@ import {
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 import { Picker } from "@react-native-picker/picker";
+import axios from "axios";
 
 const EventScreen = () => {
   const navigation = useNavigation();
-  const [selectedYear, setSelectedYear] = useState("Fliter");
+  const [selectedYear, setSelectedYear] = useState(
+    new Date().getFullYear().toString()
+  );
+  const [event, setEvent] = useState([]);
+  useEffect(() => {
+    const fetchEvent = async () => {
+      const res = await axios(
+        `http://192.168.1.4:3000/events/v9/allevent?year=${selectedYear}`
+      );
+      setEvent(res.data);
+    };
+    fetchEvent();
+  }, [selectedYear]);
 
-  // Sample data
-  const eventData = [
-    {
-      id: 1,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 2,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 3,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 4,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 5,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 6,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 7,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-    {
-      id: 8,
-      title: "Khmer New Year",
-      location: "Hanoi",
-      date: new Date().toDateString(),
-      image: require("../../assets/icons/khmernewyear.jpg"),
-    },
-  ];
   const handleClickEvent = (event) => {
-    navigation.navigate("detailevent");
+    navigation.navigate("detailevent", { eventId: event.id });
   };
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.itemContainer}
       onPress={() => handleClickEvent(item)}
     >
-      <Image source={item.image} style={styles.eventImage} />
-      <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text style={styles.eventLocation}>{item.location}</Text>
-      <Text style={styles.eventDate}>{item.date}</Text>
+      <Image source={{ uri: item.eventImage }} style={styles.eventImage} />
+      <Text style={styles.eventTitle}>{item.eventName}</Text>
+      <Text style={styles.eventLocation}>{item.eventLocation}</Text>
+      <Text style={styles.eventDate}>{item.eventDate}</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <MaterialCommunityIcons name="arrow-left" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Event</Text>
       </View>
       <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedYear}
-          onValueChange={(itemValue, itemIndex) => setSelectedYear(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item label="Fliter" value="Fliter" />
-          <Picker.Item label="2022" value="2022" />
-          <Picker.Item label="2023" value="2023" />
-          <Picker.Item label="2024" value="2024" />
-          {/* Add other years here */}
-        </Picker>
+        <View style={styles.pickerContainer2}>
+          <Picker
+            selectedValue={selectedYear}
+            onValueChange={(itemValue, itemIndex) => setSelectedYear(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item
+              label={new Date().getFullYear().toString()}
+              value={new Date().getFullYear().toString()}
+            />
+            <Picker.Item label="2022" value="2022" />
+            <Picker.Item label="2023" value="2023" />
+          </Picker>
+        </View>
       </View>
       <FlatList
-        data={eventData}
+        data={event}
         renderItem={renderItem}
         keyExtractor={(item) => item.id.toString()}
         numColumns={2}
@@ -136,14 +96,19 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    color: "#FFFFFF",
+    fontSize: 18,
+    color: "white",
     fontWeight: "bold",
     marginLeft: 10,
   },
-
+  backButton: {
+    position: "absolute",
+    left: 20,
+    top: 50,
+  },
   itemContainer: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
@@ -187,11 +152,23 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   pickerContainer: {
-    backgroundColor: "#ECEFF1",
-    paddingHorizontal: 10,
-    marginHorizontal: 10,
-    borderRadius: 5,
-    elevation: 3,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "white",
+    elevation: 5,
+  },
+  pickerContainer2: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 8,
+    // paddingVertical: 8,
+    // paddingHorizontal: 12,
+    flex: 1,
+    backgroundColor: "#F0F0F0",
   },
   picker: {
     width: "100%",

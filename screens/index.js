@@ -3,7 +3,7 @@ import ElectricalScreen from "./ElectricalScreen/ElectricalScreen";
 import EventDetail from "./EventDetail/EventDetail";
 import EventScreen from "./EventScreen/EventScreen";
 import HomeScreen from "./HomeScreen/HomeScreen";
-import LoginScreen from "./LoginScreen/LoginSCreen";
+import LoginScreen from "./LoginScreen/LoginScreen";
 import MessageChat from "./MessageChat/MessageChat";
 import MessageScreen from "./MessageScreen/MessageScreen";
 import NotificationDetail from "./NotificationDetail/NotificationDetail";
@@ -25,11 +25,11 @@ export {
   SchoolScreen,
   PassportScreen,
   ElectricalScreen,
-  WaterScreen,
   EventScreen,
   EventDetail,
   MessageChat,
   NotificationDetail,
   LoginScreen,
+  WaterScreen,
   RegisterScreen,
 };

@@ -1,5 +1,6 @@
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,83 +12,56 @@ import {
   FlatList,
   TextInput,
 } from "react-native";
-
-const ModalAddMessage = ({ modalVisible, setModalVisible }) => {
+import { useSocketContext } from "../../contexts/SocketContext";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+const ModalAddMessage = ({ modalVisible, setModalVisible, auth }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const navigation = useNavigation();
-  const [chats, setChats] = useState([
-    {
-      id: "1",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Tocky Parker",
-    },
-    {
-      id: "2",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "John Doe",
-    },
-    {
-      id: "3",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Jane Smith",
-    },
-    {
-      id: "4",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Bob Johnson",
-    },
-    {
-      id: "5",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Alice Brown",
-    },
-    {
-      id: "6",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Eva White",
-    },
-    {
-      id: "7",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Michael Black",
-    },
-    {
-      id: "8",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Sophia Gray",
-    },
-    {
-      id: "9",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "William Green",
-    },
-    {
-      id: "10",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Olivia Red",
-    },
-  ]);
-
-  const filteredChats = chats.filter((chat) =>
-    chat.username.toLowerCase().includes(searchQuery.toLowerCase())
+  const [students, setStudents] = useState([]);
+  const { onlineUsers } = useSocketContext();
+  const fetchAllStudent = async () => {
+    const res = await axios.get(`http://192.168.1.4:3000/users/v1/alluser`, {
+      headers: {
+        Authorization: `Bearer ${auth}`,
+      },
+    });
+    setStudents(res.data);
+  };
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAllStudent();
+    }, [])
   );
-
+  const filterStudent = students.filter(
+    (students) =>
+      students.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      students.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const handleClickChat = (item) => {
     setModalVisible(false);
-    navigation.navigate("messagechat");
+    navigation.navigate("messagechat", { receiverId: item.id });
   };
 
   const handleCancel = () => {
     setModalVisible(false);
-    searchQuery("");
+    setSearchQuery("");
   };
-
   const renderItem = ({ item }) => (
     <TouchableOpacity onPress={() => handleClickChat(item)}>
       <View style={styles.chatItem}>
-        <Image source={item.avatar} style={styles.avatar} />
+        {onlineUsers && onlineUsers.some((user) => user.userId === item.id) && (
+          <MaterialIcons
+            name={"fiber-manual-record"}
+            size={15}
+            color={"#4CAF50"}
+            style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
+          />
+        )}
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
         <View style={styles.chatContent}>
-          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.username}>
+            {item.firstName} {item.lastName}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -112,7 +86,7 @@ const ModalAddMessage = ({ modalVisible, setModalVisible }) => {
             value={searchQuery}
           />
           <FlatList
-            data={filteredChats}
+            data={filterStudent}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
           />

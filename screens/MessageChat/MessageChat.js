@@ -1,3 +1,4 @@
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,46 +7,102 @@ import {
   TextInput,
   FlatList,
   Image,
+  ActivityIndicator,
 } from "react-native";
-import React, { useState } from "react";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons"; // Import MaterialIcons
-import { useNavigation } from "@react-navigation/native";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { useSocketContext } from "../../contexts/SocketContext";
 
 const MessageChat = () => {
   const navigation = useNavigation();
-  const [message, setMessage] = useState("");
-  const messageData = [
-    { type: "system", text: "Hi, how are you today?", timestamp: "21:32" },
-    { type: "user", text: "Hi", timestamp: "21:32" },
-    // Add more messages as needed
-  ];
-  const handleSend = () => {
-    console.log("Message sent:", message);
-    setMessage("");
+  const [messages, setMessages] = useState([]);
+  const [content, setContent] = useState("");
+  const [userReceiver, setUserReceiver] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const route = useRoute();
+  const { receiverId } = route.params;
+  const { auth } = useAuthContext();
+  const { realtimeMessage, onlineUsers } = useSocketContext();
+  const flatListRef = useRef(null);
+  useEffect(() => {
+    const fetchMessage = async () => {
+      try {
+        const res = await axios.get(
+          `http://192.168.1.4:3000/messages/v16/all/${receiverId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth}`,
+            },
+          }
+        );
+        const resReceiver = await axios.get(
+          `http://192.168.1.4:3000/users/v1/${receiverId}/detail`
+        );
+        setUserReceiver(resReceiver.data);
+        setMessages(res.data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchMessage();
+  }, [receiverId, auth]);
+  useEffect(() => {
+    setMessages([...messages, realtimeMessage]);
+  }, [realtimeMessage]);
+  const handleSend = async () => {
+    if (content) {
+      try {
+        const response = await axios.post(
+          `http://192.168.1.4:3000/messages/v16/create`,
+          {
+            content,
+            receiverId: receiverId,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${auth}`,
+            },
+          }
+        );
+        // Assuming response.data contains the newly created message
+        setMessages([...messages, response.data]);
+        setContent("");
+        flatListRef.current.scrollToEnd({ animated: true });
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    }
   };
-  const renderItemChat = ({ item, index }) => (
-    <View>
-      <View style={styles.chatMessages}>
-        <View style={styles.messageContainer}>
-          <Text style={styles.timestamp}>{item.timestamp}</Text>
-          {item.type === "system" ? (
-            <View style={styles.systemMessage}>
-              <Text style={styles.systemMessageText}>{item.text}</Text>
-            </View>
-          ) : (
-            <View
-              style={
-                item.type === "user" ? styles.userMessage : styles.otherMessage
-              }
-            >
-              <Text style={styles.messageText}>{item.text}</Text>
-            </View>
-          )}
+  const renderItemChat = ({ item }) => (
+    <View style={styles.messageContainer}>
+      <Text style={styles.timestamp}>
+        {new Date(item.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </Text>
+      {item.receiver_id !== receiverId ? (
+        <View style={styles.systemMessage}>
+          <Text style={styles.systemMessageText}>{item.content}</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.userMessage}>
+          <Text style={styles.messageText}>{item.content}</Text>
+        </View>
+      )}
     </View>
   );
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#0000ff" />;
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -55,24 +112,44 @@ const MessageChat = () => {
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("detail")}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("detail", { userId: receiverId })}
+        >
           <View style={styles.userInfo}>
+            {onlineUsers.some((user) => user.userId === receiverId) ? (
+              <MaterialIcons
+                name={"fiber-manual-record"}
+                size={15}
+                color={"#4CAF50"}
+                style={{ position: "absolute", top: 25, left: 25, zIndex: 10 }}
+              />
+            ) : null}
+
             <Image
-              source={require("../../assets/icons/profile.jpg")}
+              source={{ uri: userReceiver.avatar }}
               style={styles.avatar}
             />
             <View style={styles.userInfoText}>
-              <Text style={styles.username}>John Doe</Text>
-              <Text style={styles.activeStatus}>Active 21 minutes ago</Text>
+              <Text style={styles.username}>
+                {userReceiver.firstName} {userReceiver.lastName}
+              </Text>
+              <Text style={styles.activeStatus}>
+                {onlineUsers &&
+                onlineUsers.some((user) => user.userId === receiverId)
+                  ? "Online"
+                  : `Offline `}
+              </Text>
             </View>
           </View>
         </TouchableOpacity>
       </View>
       <FlatList
-        data={messageData}
+        ref={flatListRef}
         showsVerticalScrollIndicator={false}
-        keyExtractor={(item, index) => index.toString()}
+        data={messages}
+        keyExtractor={(item, index) => index}
         renderItem={renderItemChat}
+        onContentSizeChange={() => flatListRef.current.scrollToEnd()}
       />
       <View style={styles.inputContainer}>
         <View style={styles.actionIcons}>
@@ -90,13 +167,14 @@ const MessageChat = () => {
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
-            value={message}
-            onChangeText={(text) => setMessage(text)}
+            value={content}
+            onChangeText={(text) => setContent(text)}
           />
           <TouchableOpacity>
             <MaterialIcons name="insert-emoticon" size={24} color="#4267B2" />
           </TouchableOpacity>
         </View>
+
         <TouchableOpacity onPress={handleSend}>
           <MaterialIcons name="send" size={24} color="#4267B2" />
         </TouchableOpacity>
@@ -122,20 +200,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: "white",
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-    paddingBottom: 12,
   },
   userInfo: {
     flexDirection: "row",

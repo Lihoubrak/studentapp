@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "760456339435",
+    "project_id": "test-2b56a",
+    "storage_bucket": "test-2b56a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760456339435:android:39ee4511f9dea3f35f43ae",
+        "android_client_info": {
+          "package_name": "com.lihou.studentapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFsoiQAROSJD5kEMffqXNtmoftgtebz6w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

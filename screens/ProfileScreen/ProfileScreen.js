@@ -1,9 +1,46 @@
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
-import React from "react";
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  RefreshControl,
+  TouchableOpacity,
+} from "react-native";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { Image } from "react-native";
+import { fetchUserToken } from "../../utils";
+import { useAuthContext } from "../../contexts/AuthContext";
+import axios from "axios";
+import { useFocusEffect } from "@react-navigation/native";
 
 const ProfileScreen = () => {
+  const [user, setUser] = useState(null);
+  const { auth } = useAuthContext();
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    fetchData();
+  }, [auth]);
+  const fetchData = async () => {
+    try {
+      const decodedJWT = await fetchUserToken(auth);
+      if (decodedJWT) {
+        const res = await axios.get(
+          `http://192.168.1.4:3000/users/v1/${decodedJWT.id}/detail`
+        );
+        setUser(res.data);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+  const handleChangeImage = () => {};
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -12,6 +49,9 @@ const ProfileScreen = () => {
       <ScrollView
         contentContainerStyle={styles.scrollViewContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         <View style={styles.contentContainer}>
           <View style={styles.coverContainer}>
@@ -19,32 +59,34 @@ const ProfileScreen = () => {
               source={require("../../assets/icons/angkorwat.jpg")}
               style={styles.coverImage}
             />
+            <TouchableOpacity
+              style={styles.buttonEdit}
+              onPress={handleChangeImage}
+            >
+              <MaterialCommunityIcons name="pencil" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
           <View style={styles.profileContainer}>
-            <Image
-              source={require("../../assets/icons/profile.jpg")}
-              style={styles.profileImage}
-            />
+            <Image source={{ uri: user?.avatar }} style={styles.profileImage} />
             <View style={styles.profileTextContainer}>
-              <Text style={styles.profileTextName}>Brak Lihou</Text>
-              <Text style={styles.profileText}>Phone: 200</Text>
-              <Text style={styles.profileText}>
-                Email: dfdffdgfgdfgfgfdgfdf
+              <Text style={styles.profileTextName}>
+                {user?.firstName} {user?.lastName}
               </Text>
+              <Text style={styles.profileText}>Phone: {user?.phoneNumber}</Text>
+              <Text style={styles.profileText}>Email: {user?.email}</Text>
             </View>
           </View>
           <View style={styles.detailsContainer}>
             <View style={styles.detailItem}>
               <MaterialCommunityIcons name="home" size={20} color="#FF5733" />
               <Text style={styles.detailLabel}>ROOM:</Text>
-              <Text style={styles.detailValue}>101</Text>
+              <Text style={styles.detailValue}>{user?.Room?.roomNumber}</Text>
             </View>
             <View style={styles.detailItem}>
               <MaterialCommunityIcons name="school" size={20} color="#4682B4" />
               <Text style={styles.detailLabel}>SCHOOL:</Text>
               <Text style={styles.detailValue}>
-                By setting the width of detailItem to windowWidth - 40, you
-                ensure that each item occupies the same width, making them equal
+                {user?.Major?.School.schoolName}
               </Text>
             </View>
             <View style={styles.detailItem}>
@@ -111,6 +153,15 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   coverContainer: {},
+  buttonEdit: {
+    position: "absolute",
+    top: 93,
+    left: 88,
+    backgroundColor: "red",
+    padding: 1,
+    borderRadius: 5,
+    zIndex: 10,
+  },
   coverImage: {
     width: windowWidth,
     height: windowHeight * 0.2,

@@ -1,95 +1,87 @@
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useContext, useEffect, useState } from "react";
 import {
   FlatList,
   Image,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { ModalAddMessage } from "../../components";
-
+import { useAuthContext } from "../../contexts/AuthContext";
+import axios from "axios";
+import { useSocketContext } from "../../contexts/SocketContext";
 const MessageScreen = () => {
   const navigation = useNavigation();
   const [isModalVisible, setModalVisible] = useState(false);
-  const [chats, setChats] = useState([
-    {
-      id: "1",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Tocky Parker",
-      lastMessage: "Okay fine",
-    },
-    {
-      id: "2",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "John Doe",
-      lastMessage: "How are you?",
-    },
-    {
-      id: "3",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Jane Smith",
-      lastMessage: "Let's catch up later.",
-    },
-    {
-      id: "4",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Bob Johnson",
-      lastMessage: "Sure thing!",
-    },
-    {
-      id: "5",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Alice Brown",
-      lastMessage: "See you soon!",
-    },
-    {
-      id: "6",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Eva White",
-      lastMessage: "What's up?",
-    },
-    {
-      id: "7",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Michael Black",
-      lastMessage: "Doing well, thanks!",
-    },
-    {
-      id: "8",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Sophia Gray",
-      lastMessage: "I'm busy right now.",
-    },
-    {
-      id: "9",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "William Green",
-      lastMessage: "Sure, let's talk later.",
-    },
-    {
-      id: "10",
-      avatar: require("../../assets/icons/profile.jpg"),
-      username: "Olivia Red",
-      lastMessage: "Good to hear!",
-    },
-  ]);
-  const handleClickChat = (item) => {
-    navigation.navigate("messagechat");
+  const [chats, setChats] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { auth } = useAuthContext();
+  const [refreshing, setRefreshing] = useState(false);
+  const { onlineUsers } = useSocketContext();
+
+  const fetchChats = async () => {
+    try {
+      const res = await axios.get(
+        `http://192.168.1.4:3000/messages/v16/users-with-conversations`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth}`,
+          },
+        }
+      );
+      setChats(res.data);
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+    }
   };
+  const handleClickChat = (item) => {
+    navigation.navigate("messagechat", { receiverId: item.id });
+  };
+
+  const filterChats = chats.filter(
+    (students) =>
+      students.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      students.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchChats();
+    setRefreshing(false);
+  };
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchChats();
+    }, [])
+  );
   const renderItem = ({ item }) => (
     <TouchableOpacity onPress={() => handleClickChat(item)}>
       <View style={styles.chatItem}>
-        <Image source={item.avatar} style={styles.avatar} />
+        {onlineUsers && onlineUsers.some((user) => user.userId === item.id) && (
+          <MaterialIcons
+            name={"fiber-manual-record"}
+            size={15}
+            color={"#4CAF50"}
+            style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
+          />
+        )}
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
         <View style={styles.chatContent}>
-          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.username}>
+            {item.firstName} {item.lastName}
+          </Text>
           <Text style={styles.lastMessage}>{item.lastMessage}</Text>
         </View>
-        <Text style={styles.time}>12:30 PM</Text>
+        <Text style={styles.time}>
+          {new Date(item.sendDate).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -99,18 +91,22 @@ const MessageScreen = () => {
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Message</Text>
       </View>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchContent}>
+          <MaterialIcons name="search" size={24} color="black" />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Search"
+            value={searchQuery}
+            onChangeText={(text) => setSearchQuery(text)}
+          />
+        </View>
+      </View>
       <FlatList
-        ListHeaderComponent={() => (
-          <>
-            <View style={styles.searchContainer}>
-              <View style={styles.searchContent}>
-                <MaterialIcons name="search" size={24} color="black" />
-                <TextInput style={styles.textInput} placeholder="Search" />
-              </View>
-            </View>
-          </>
-        )}
-        data={chats}
+        refreshControl={
+          <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
+        }
+        data={filterChats}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
@@ -126,6 +122,7 @@ const MessageScreen = () => {
       <ModalAddMessage
         modalVisible={isModalVisible}
         setModalVisible={setModalVisible}
+        auth={auth}
       />
     </View>
   );
@@ -184,6 +181,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
+    position: "relative",
   },
   avatar: {
     width: 50,

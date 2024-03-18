@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import React, { useContext } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -23,23 +24,25 @@ const HomeScreen = () => {
       image: require("../../assets/icons/electrical.png"),
     },
     { title: "Water", image: require("../../assets/icons/water.png") },
+    { title: "Heathcare", image: require("../../assets/icons/heathcare.png") },
+    { title: "Leader", image: require("../../assets/icons/leader.png") },
   ];
+  const { setAuth } = useAuthContext();
   const handleButtonClick = (title) => {
     if (title === "Dormitory") navigation.navigate("dorm");
-    if (title === "School") navigation.navigate("school");
+    if (title === "School") setAuth("");
     if (title === "Passport") navigation.navigate("passport");
     if (title === "Electrical") navigation.navigate("electrical");
     if (title === "Water") navigation.navigate("water");
     if (title === "Event") navigation.navigate("event");
   };
-
   const renderImageButtom = ({ item }) => {
     return (
       <TouchableOpacity
         style={styles.item}
         onPress={() => handleButtonClick(item.title)}
       >
-        <View>
+        <View style={{ alignItems: "center" }}>
           <Image source={item.image} style={styles.image} />
           <Text style={styles.title}>{item.title}</Text>
         </View>
