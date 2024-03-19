@@ -35,7 +35,7 @@ function AppContainer() {
             <Stack.Screen name="detailevent" component={EventDetail} />
             <Stack.Screen name="messagechat" component={MessageChat} />
             <Stack.Screen
-              name="notifcationdetail"
+              name="notificationdetail"
               component={NotificationDetail}
             />
           </>

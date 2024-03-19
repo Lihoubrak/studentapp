@@ -60,7 +60,9 @@ const TabBottomBar = () => {
       shifting={true}
       activeColor="#6200ee"
       inactiveColor="#8e8e8e"
-      barStyle={{ backgroundColor: "#ffffff" }}
+      barStyle={{
+        backgroundColor: "#ffffff",
+      }}
     >
       {routes.map((route) => (
         <Tab.Screen

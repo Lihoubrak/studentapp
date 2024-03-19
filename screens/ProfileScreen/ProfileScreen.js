@@ -13,7 +13,6 @@ import { Image } from "react-native";
 import { fetchUserToken } from "../../utils";
 import { useAuthContext } from "../../contexts/AuthContext";
 import axios from "axios";
-import { useFocusEffect } from "@react-navigation/native";
 
 const ProfileScreen = () => {
   const [user, setUser] = useState(null);
@@ -27,7 +26,7 @@ const ProfileScreen = () => {
       const decodedJWT = await fetchUserToken(auth);
       if (decodedJWT) {
         const res = await axios.get(
-          `http://192.168.1.4:3000/users/v1/${decodedJWT.id}/detail`
+          `http://192.168.1.4:3000/users/v1/${decodedJWT?.id}/detail`
         );
         setUser(res.data);
       }

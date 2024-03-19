@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useSocketContext } from "../../contexts/SocketContext";
+import { formatDateTime } from "../../utils";
 
 const MessageChat = () => {
   const navigation = useNavigation();
@@ -25,8 +26,11 @@ const MessageChat = () => {
   const route = useRoute();
   const { receiverId } = route.params;
   const { auth } = useAuthContext();
-  const { realtimeMessage, onlineUsers } = useSocketContext();
+  const { onlineUsers, socket } = useSocketContext();
   const flatListRef = useRef(null);
+  const handleNewMessage = (newMessage) => {
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  };
   useEffect(() => {
     const fetchMessage = async () => {
       try {
@@ -42,6 +46,8 @@ const MessageChat = () => {
           `http://192.168.1.4:3000/users/v1/${receiverId}/detail`
         );
         setUserReceiver(resReceiver.data);
+        // Listen for newMessage event
+        socket.on("newMessage", handleNewMessage);
         setMessages(res.data);
         setLoading(false);
       } catch (error) {
@@ -49,12 +55,12 @@ const MessageChat = () => {
         setLoading(false);
       }
     };
-
     fetchMessage();
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+    };
   }, [receiverId, auth]);
-  useEffect(() => {
-    setMessages([...messages, realtimeMessage]);
-  }, [realtimeMessage]);
+
   const handleSend = async () => {
     if (content) {
       try {
@@ -70,7 +76,6 @@ const MessageChat = () => {
             },
           }
         );
-        // Assuming response.data contains the newly created message
         setMessages([...messages, response.data]);
         setContent("");
         flatListRef.current.scrollToEnd({ animated: true });
@@ -81,12 +86,7 @@ const MessageChat = () => {
   };
   const renderItemChat = ({ item }) => (
     <View style={styles.messageContainer}>
-      <Text style={styles.timestamp}>
-        {new Date(item.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </Text>
+      <Text style={styles.timestamp}>{formatDateTime(item.createdAt)}</Text>
       {item.receiver_id !== receiverId ? (
         <View style={styles.systemMessage}>
           <Text style={styles.systemMessageText}>{item.content}</Text>
@@ -147,9 +147,11 @@ const MessageChat = () => {
         ref={flatListRef}
         showsVerticalScrollIndicator={false}
         data={messages}
-        keyExtractor={(item, index) => index}
+        keyExtractor={(item, index) => index.toString()} // Convert index to string
         renderItem={renderItemChat}
-        onContentSizeChange={() => flatListRef.current.scrollToEnd()}
+        onContentSizeChange={() =>
+          flatListRef.current.scrollToEnd({ animated: true })
+        } // Scroll to end on content size change
       />
       <View style={styles.inputContainer}>
         <View style={styles.actionIcons}>

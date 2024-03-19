@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -5,37 +6,95 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React from "react";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { useSocketContext } from "../../contexts/SocketContext";
 
 const NotificationScreen = () => {
   const navigation = useNavigation();
-  const notifications = [
-    { id: 1, title: "Notification 1" },
-    { id: 2, title: "Notification 2" },
-    { id: 3, title: "Notification 3" },
-  ];
-  const handleClickNotification = (item) => {
-    navigation.navigate("notifcationdetail");
+  const { auth } = useAuthContext();
+  const { socket } = useSocketContext();
+  const [notifications, setNotifications] = useState([]);
+  const flatListRef = useRef(null);
+
+  useEffect(() => {
+    socket?.on("newNotification", handleNewNotification);
+
+    return () => {
+      socket?.off("newNotification", handleNewNotification);
+    };
+  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotification();
+    }, [])
+  );
+  const fetchNotification = async () => {
+    try {
+      const res = await axios.get(
+        `http://192.168.1.4:3000/notifications/v15/all`,
+        { headers: { Authorization: `Bearer ${auth}` } }
+      );
+      setNotifications(res.data.reverse());
+      scrollToTop();
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
   };
+
+  const handleNewNotification = (newNotification) => {
+    setNotifications((prevNotifications) => [
+      newNotification,
+      ...prevNotifications,
+    ]);
+    scrollToTop();
+  };
+
+  const handleClickNotification = (item) => {
+    navigation.navigate("notificationdetail", { notificationId: item.id });
+  };
+
   const renderNotification = ({ item }) => (
     <TouchableOpacity
       style={styles.notificationContainer}
-      onPress={() => handleClickNotification(item)}
+      onPress={() => handleClickNotification(item.Notification)}
     >
       <View style={styles.notificationHeader}>
         <View style={styles.headerLeft}>
           <MaterialCommunityIcons name="bell" size={24} color="#4e74f9" />
-          <Text style={styles.notificationName}>Name</Text>
+          <Text style={styles.notificationName}>
+            {item?.Notification?.User?.Role?.roleName}
+          </Text>
         </View>
-        <Text style={styles.notificationDate}>
-          {new Date().toLocaleDateString()}
+        <Text
+          style={[
+            styles.notificationDate,
+            !item.isSeen && styles.NotificationNotSeen,
+          ]}
+        >
+          {new Date(item?.Notification?.createdAt).toLocaleDateString()}
         </Text>
       </View>
-      <Text style={styles.notificationTitle}>{item.title}</Text>
+      <Text
+        style={[
+          styles.notificationTitle,
+          !item.isSeen && styles.NotificationNotSeen,
+        ]}
+      >
+        {item?.Notification?.description}
+      </Text>
     </TouchableOpacity>
   );
+
+  const scrollToTop = () => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ animated: true, offset: 0 });
+    }
+  };
+
+  const memoizedRenderNotification = useMemo(() => renderNotification, []);
 
   return (
     <View style={styles.container}>
@@ -43,10 +102,11 @@ const NotificationScreen = () => {
         <Text style={styles.headerTitle}>Notification</Text>
       </View>
       <FlatList
+        ref={flatListRef}
         data={notifications}
-        renderItem={renderNotification}
-        keyExtractor={(item) => item.id.toString()}
-        showsHorizontalScrollIndicator={false}
+        renderItem={memoizedRenderNotification}
+        keyExtractor={(item, index) => index.toString()}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -99,5 +159,10 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     color: "#333",
+  },
+  NotificationNotSeen: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

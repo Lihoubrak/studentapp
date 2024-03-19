@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -7,16 +7,49 @@ import {
   View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
+import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 const NotificationDetail = () => {
   const navigation = useNavigation();
-  const notification = {
-    title: "New Message",
-    description:
-      "You have received a new message from your friend. Click here to view the message and reply.",
+  const route = useRoute();
+  const { notificationId } = route.params;
+  const [notificationDetail, setNotificationDetail] = useState(null);
+  const { auth } = useAuthContext();
+  const fetchNotification = async () => {
+    try {
+      const res = await axios.get(
+        `http://192.168.1.4:3000/notifications/v15/detail/${notificationId}`
+      );
+      setNotificationDetail(res.data);
+    } catch (error) {
+      console.error("Error fetching notification detail:", error);
+    }
   };
-
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotification();
+    }, [notificationId])
+  );
+  useEffect(() => {
+    const updateSeenNotification = async () => {
+      try {
+        await axios.put(
+          `http://192.168.1.4:3000/notifications/v15/user-seen-notification/${notificationId}`,
+          null,
+          { headers: { Authorization: `Bearer ${auth}` } }
+        );
+      } catch (error) {
+        console.error("Error updating seen notification:", error);
+      }
+    };
+    updateSeenNotification();
+  }, [auth]);
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -30,9 +63,11 @@ const NotificationDetail = () => {
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.bodyContainer}>
-          <Text style={styles.notificationTitle}>{notification.title}</Text>
+          <Text style={styles.notificationTitle}>
+            {notificationDetail?.description}
+          </Text>
           <Text style={styles.notificationDescription}>
-            {notification.description}
+            {notificationDetail?.content}
           </Text>
         </View>
       </ScrollView>

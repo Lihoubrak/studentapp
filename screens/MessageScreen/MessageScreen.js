@@ -15,6 +15,7 @@ import { ModalAddMessage } from "../../components";
 import { useAuthContext } from "../../contexts/AuthContext";
 import axios from "axios";
 import { useSocketContext } from "../../contexts/SocketContext";
+import { fetchUserToken } from "../../utils";
 const MessageScreen = () => {
   const navigation = useNavigation();
   const [isModalVisible, setModalVisible] = useState(false);
@@ -23,7 +24,6 @@ const MessageScreen = () => {
   const { auth } = useAuthContext();
   const [refreshing, setRefreshing] = useState(false);
   const { onlineUsers } = useSocketContext();
-
   const fetchChats = async () => {
     try {
       const res = await axios.get(
@@ -42,11 +42,10 @@ const MessageScreen = () => {
   const handleClickChat = (item) => {
     navigation.navigate("messagechat", { receiverId: item.id });
   };
-
   const filterChats = chats.filter(
     (students) =>
-      students.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      students.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+      students.firstName?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
+      students.lastName?.toLowerCase().includes(searchQuery?.toLowerCase())
   );
   const onRefresh = async () => {
     setRefreshing(true);
@@ -74,9 +73,21 @@ const MessageScreen = () => {
           <Text style={styles.username}>
             {item.firstName} {item.lastName}
           </Text>
-          <Text style={styles.lastMessage}>{item.lastMessage}</Text>
+          <Text
+            style={[
+              styles.lastMessage,
+              // item.status === "pending" && styles.lastMessageNotSeen,
+            ]}
+          >
+            {item.lastMessage}
+          </Text>
         </View>
-        <Text style={styles.time}>
+        <Text
+          style={[
+            styles.time,
+            // item.status === "pending" && styles.lastMessageNotSeen,
+          ]}
+        >
           {new Date(item.sendDate).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -214,5 +225,10 @@ const styles = StyleSheet.create({
     height: 60,
     justifyContent: "center",
     alignItems: "center",
+  },
+  lastMessageNotSeen: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

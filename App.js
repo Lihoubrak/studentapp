@@ -7,7 +7,7 @@ export default function App() {
   const [notification, setNotification] = useState(false);
   const notificationListener = useRef();
   const responseListener = useRef();
-  console.log("notification", notification);
+  // console.log("notification", notification);
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
