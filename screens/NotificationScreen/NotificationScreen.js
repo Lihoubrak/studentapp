@@ -11,21 +11,30 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useSocketContext } from "../../contexts/SocketContext";
+import { useNotificationContext } from "../../contexts/NotificationContext";
 
 const NotificationScreen = () => {
   const navigation = useNavigation();
   const { auth } = useAuthContext();
   const { socket } = useSocketContext();
   const [notifications, setNotifications] = useState([]);
+  const { setNotificationCount } = useNotificationContext();
   const flatListRef = useRef(null);
-
+  console.log("NotificationScreen");
   useEffect(() => {
+    console.log("newNotification Socket");
     socket?.on("newNotification", handleNewNotification);
 
     return () => {
       socket?.off("newNotification", handleNewNotification);
     };
   }, []);
+  useEffect(() => {
+    setNotificationCount(
+      notifications.filter((notification) => !notification.isSeen).length
+    );
+    console.log("useEffect Notifications");
+  }, [notifications]);
   useFocusEffect(
     React.useCallback(() => {
       fetchNotification();

@@ -1,4 +1,5 @@
-import React from "react";
+// TabBottomBar.js
+import React, { useContext } from "react";
 import { createMaterialBottomTabNavigator } from "@react-navigation/material-bottom-tabs";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import {
@@ -7,54 +8,15 @@ import {
   NotificationScreen,
   ProfileScreen,
 } from "../screens";
+import { useNotificationContext } from "../contexts/NotificationContext";
+import { useMessageContext } from "../contexts/MessageContext";
 
 const Tab = createMaterialBottomTabNavigator();
 
-const routes = [
-  {
-    name: "Home",
-    component: HomeScreen,
-    options: {
-      tabBarLabel: "Home",
-      tabBarIcon: ({ color }) => (
-        <MaterialCommunityIcons name="home" color={color} size={26} />
-      ),
-    },
-  },
-  {
-    name: "Message",
-    component: MessageScreen,
-    options: {
-      tabBarLabel: "Message",
-      tabBarIcon: ({ color }) => (
-        <MaterialCommunityIcons name="message" color={color} size={26} />
-      ),
-    },
-  },
-  {
-    name: "Notification",
-    component: NotificationScreen,
-    options: {
-      tabBarLabel: "Notification",
-      tabBarBadge: 3,
-      tabBarIcon: ({ color }) => (
-        <MaterialCommunityIcons name="bell" color={color} size={26} />
-      ),
-    },
-  },
-  {
-    name: "Profile",
-    component: ProfileScreen,
-    options: {
-      tabBarLabel: "Profile",
-      tabBarIcon: ({ color }) => (
-        <MaterialCommunityIcons name="account" color={color} size={26} />
-      ),
-    },
-  },
-];
-
 const TabBottomBar = () => {
+  const { notificationCount } = useNotificationContext();
+  const { messageCount } = useMessageContext();
+
   return (
     <Tab.Navigator
       shifting={true}
@@ -64,14 +26,48 @@ const TabBottomBar = () => {
         backgroundColor: "#ffffff",
       }}
     >
-      {routes.map((route) => (
-        <Tab.Screen
-          key={route.name}
-          name={route.name}
-          component={route.component}
-          options={route.options}
-        />
-      ))}
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="home" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Message"
+        component={MessageScreen}
+        options={{
+          tabBarLabel: "Message",
+          tabBarBadge: messageCount > 0 ? messageCount : null,
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="message" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Notification"
+        component={NotificationScreen}
+        options={{
+          tabBarLabel: "Notification",
+          tabBarBadge: notificationCount > 0 ? notificationCount : null,
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="bell" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="account" color={color} size={26} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 };

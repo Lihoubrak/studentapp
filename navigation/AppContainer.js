@@ -22,7 +22,7 @@ function AppContainer() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {auth ? (
+        {/* {auth ? (
           <>
             <Stack.Screen name="tabBottomBar" component={TabBottomBar} />
             <Stack.Screen name="dorm" component={DormitoryScreen} />
@@ -41,7 +41,21 @@ function AppContainer() {
           </>
         ) : (
           <Stack.Screen name="login" component={LoginScreen} />
-        )}
+        )} */}
+        <Stack.Screen name="tabBottomBar" component={TabBottomBar} />
+        <Stack.Screen name="dorm" component={DormitoryScreen} />
+        <Stack.Screen name="school" component={SchoolScreen} />
+        <Stack.Screen name="passport" component={PassportScreen} />
+        <Stack.Screen name="electrical" component={ElectricalScreen} />
+        <Stack.Screen name="water" component={WaterScreen} />
+        <Stack.Screen name="event" component={EventScreen} />
+        <Stack.Screen name="detail" component={ProfileDetailStudent} />
+        <Stack.Screen name="detailevent" component={EventDetail} />
+        <Stack.Screen name="messagechat" component={MessageChat} />
+        <Stack.Screen
+          name="notificationdetail"
+          component={NotificationDetail}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

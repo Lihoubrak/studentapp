@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import {
@@ -14,13 +15,17 @@ import {
 } from "@react-navigation/native";
 import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
-
+import RenderHtml from "react-native-render-html";
+import WebView from "react-native-webview";
+import IframeRenderer, { iframeModel } from "@native-html/iframe-plugin";
 const NotificationDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { notificationId } = route.params;
   const [notificationDetail, setNotificationDetail] = useState(null);
   const { auth } = useAuthContext();
+  const { width } = useWindowDimensions();
+  console.log("NotificationDetail");
   const fetchNotification = async () => {
     try {
       const res = await axios.get(
@@ -37,6 +42,7 @@ const NotificationDetail = () => {
     }, [notificationId])
   );
   useEffect(() => {
+    console.log("NotificationDetail useEffect");
     const updateSeenNotification = async () => {
       try {
         await axios.put(
@@ -49,7 +55,10 @@ const NotificationDetail = () => {
       }
     };
     updateSeenNotification();
-  }, [auth]);
+  }, [notificationId]);
+  const source = {
+    html: notificationDetail?.content,
+  };
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -66,9 +75,19 @@ const NotificationDetail = () => {
           <Text style={styles.notificationTitle}>
             {notificationDetail?.description}
           </Text>
-          <Text style={styles.notificationDescription}>
-            {notificationDetail?.content}
-          </Text>
+          <View style={{ alignItems: "center" }}>
+            {notificationDetail && notificationDetail.content && (
+              <RenderHtml
+                WebView={WebView}
+                renderers={{ iframe: IframeRenderer }}
+                source={source}
+                contentWidth={width}
+                customHTMLElementModels={{
+                  iframe: iframeModel,
+                }}
+              />
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>

@@ -7,7 +7,7 @@ const AuthContext = createContext();
 const AuthProvider = ({ children }) => {
   const [auth, setAuthState] = useState("");
   const [loading, setLoading] = useState(true);
-
+  console.log("AuthProvider");
   const getAuthState = async () => {
     try {
       const authDataString = await SecureStore.getItemAsync("auth");

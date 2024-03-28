@@ -1,5 +1,5 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import {
   FlatList,
   Image,
@@ -16,6 +16,7 @@ import { useAuthContext } from "../../contexts/AuthContext";
 import axios from "axios";
 import { useSocketContext } from "../../contexts/SocketContext";
 import { fetchUserToken } from "../../utils";
+
 const MessageScreen = () => {
   const navigation = useNavigation();
   const [isModalVisible, setModalVisible] = useState(false);
@@ -23,7 +24,35 @@ const MessageScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { auth } = useAuthContext();
   const [refreshing, setRefreshing] = useState(false);
-  const { onlineUsers } = useSocketContext();
+  const { onlineUsers, socket } = useSocketContext();
+  const tokenRef = useRef(null);
+  const handleListMessageRef = useRef(handleListMessage);
+
+  console.log("MessageScreen component rendered");
+
+  useEffect(() => {
+    console.log("asynchronously");
+    const fetchToken = async () => {
+      try {
+        const token = await fetchUserToken(auth);
+        tokenRef.current = token.id;
+      } catch (error) {
+        console.error("Error fetching user token:", error);
+      }
+    };
+    fetchToken();
+  }, [auth]);
+
+  useEffect(() => {
+    console.log("listMessage Socket");
+    socket?.on("listMessage", handleListMessageRef.current); // Subscribe to the event using the memoized function reference
+    return () => {
+      socket?.off("listMessage", handleListMessageRef.current); // Unsubscribe from the event using the same reference
+    };
+  }, []);
+  const handleListMessage = (listMessage) => {
+    setChats((prevChats) => [...prevChats, listMessage]);
+  };
   const fetchChats = async () => {
     try {
       const res = await axios.get(
@@ -39,64 +68,69 @@ const MessageScreen = () => {
       console.error("Error fetching chats:", error);
     }
   };
+
   const handleClickChat = (item) => {
     navigation.navigate("messagechat", { receiverId: item.id });
   };
+
   const filterChats = chats.filter(
     (students) =>
       students.firstName?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
       students.lastName?.toLowerCase().includes(searchQuery?.toLowerCase())
   );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchChats();
     setRefreshing(false);
   };
+
   useFocusEffect(
     React.useCallback(() => {
       fetchChats();
     }, [])
   );
-  const renderItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleClickChat(item)}>
-      <View style={styles.chatItem}>
-        {onlineUsers && onlineUsers.some((user) => user.userId === item.id) && (
-          <MaterialIcons
-            name={"fiber-manual-record"}
-            size={15}
-            color={"#4CAF50"}
-            style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
-          />
-        )}
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        <View style={styles.chatContent}>
-          <Text style={styles.username}>
-            {item.firstName} {item.lastName}
-          </Text>
-          <Text
-            style={[
-              styles.lastMessage,
-              // item.status === "pending" && styles.lastMessageNotSeen,
-            ]}
-          >
-            {item.lastMessage}
+  const renderItem = ({ item }) => {
+    const isCurrentUserReceiver = item.receiver_id === tokenRef.current;
+    const isMessageSeenByCurrentUser = isCurrentUserReceiver
+      ? item.seen_by_user2
+      : true;
+    const lastMessageStyle =
+      isCurrentUserReceiver && !isMessageSeenByCurrentUser
+        ? styles.lastMessageNotSeen
+        : styles.lastMessage;
+
+    return (
+      <TouchableOpacity onPress={() => handleClickChat(item)}>
+        <View style={styles.chatItem}>
+          {onlineUsers &&
+            onlineUsers.some((user) => user.userId === item.id) && (
+              <MaterialIcons
+                name={"fiber-manual-record"}
+                size={15}
+                color={"#4CAF50"}
+                style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
+              />
+            )}
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          <View style={styles.chatContent}>
+            <Text style={styles.username}>
+              {item.firstName} {item.lastName}
+            </Text>
+            <Text style={[styles.lastMessage, lastMessageStyle]}>
+              {item.lastMessage}
+            </Text>
+          </View>
+          <Text style={styles.time}>
+            {new Date(item.sendDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </Text>
         </View>
-        <Text
-          style={[
-            styles.time,
-            // item.status === "pending" && styles.lastMessageNotSeen,
-          ]}
-        >
-          {new Date(item.sendDate).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
+      </TouchableOpacity>
+    );
+  };
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -117,8 +151,8 @@ const MessageScreen = () => {
         refreshControl={
           <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
         }
-        data={filterChats}
-        keyExtractor={(item) => item.id}
+        data={filterChats.reverse()}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
       />

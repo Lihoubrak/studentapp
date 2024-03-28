@@ -16,7 +16,7 @@ import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { useSocketContext } from "../../contexts/SocketContext";
 import { formatDateTime } from "../../utils";
-
+import { useMessageContext } from "../../contexts/MessageContext";
 const MessageChat = () => {
   const navigation = useNavigation();
   const [messages, setMessages] = useState([]);
@@ -28,10 +28,33 @@ const MessageChat = () => {
   const { auth } = useAuthContext();
   const { onlineUsers, socket } = useSocketContext();
   const flatListRef = useRef(null);
+  const { setMessageCount } = useMessageContext();
+  console.log("MessageChat");
+  useEffect(() => {
+    setMessageCount(
+      messages.filter((message) => !message.seen_by_user2).length
+    );
+  }, [messages]);
   const handleNewMessage = (newMessage) => {
     setMessages((prevMessages) => [...prevMessages, newMessage]);
   };
   useEffect(() => {
+    console.log("fetchUserReceiver");
+    const fetchUserReceiver = async () => {
+      try {
+        const resReceiver = await axios.get(
+          `http://192.168.1.4:3000/users/v1/${receiverId}/detail`
+        );
+        setUserReceiver(resReceiver.data);
+      } catch (error) {
+        console.error("Error fetching user receiver:", error);
+      }
+    };
+
+    fetchUserReceiver();
+  }, []);
+  useEffect(() => {
+    console.log("fetchMessage");
     const fetchMessage = async () => {
       try {
         const res = await axios.get(
@@ -42,22 +65,33 @@ const MessageChat = () => {
             },
           }
         );
-        const resReceiver = await axios.get(
-          `http://192.168.1.4:3000/users/v1/${receiverId}/detail`
-        );
-        setUserReceiver(resReceiver.data);
-        // Listen for newMessage event
-        socket.on("newMessage", handleNewMessage);
+        socket?.on("newMessage", handleNewMessage);
         setMessages(res.data);
         setLoading(false);
+
+        // Extract messageId from each message
+        const messageIds = res.data.map((message) => message.id);
+        // Update seen status for each message
+        messageIds.forEach(async (messageId) => {
+          await axios.put(
+            `http://192.168.1.4:3000/messages/v16/update-status-seen/${messageId}`,
+            null,
+            {
+              headers: {
+                Authorization: `Bearer ${auth}`,
+              },
+            }
+          );
+        });
       } catch (error) {
         console.error("Error fetching messages:", error);
         setLoading(false);
       }
     };
+
     fetchMessage();
     return () => {
-      socket.off("newMessage", handleNewMessage);
+      socket?.off("newMessage", handleNewMessage);
     };
   }, [receiverId, auth]);
 
@@ -102,7 +136,6 @@ const MessageChat = () => {
   if (loading) {
     return <ActivityIndicator size="large" color="#0000ff" />;
   }
-
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -126,12 +159,12 @@ const MessageChat = () => {
             ) : null}
 
             <Image
-              source={{ uri: userReceiver.avatar }}
+              source={{ uri: userReceiver?.avatar }}
               style={styles.avatar}
             />
             <View style={styles.userInfoText}>
               <Text style={styles.username}>
-                {userReceiver.firstName} {userReceiver.lastName}
+                {userReceiver?.firstName} {userReceiver?.lastName}
               </Text>
               <Text style={styles.activeStatus}>
                 {onlineUsers &&

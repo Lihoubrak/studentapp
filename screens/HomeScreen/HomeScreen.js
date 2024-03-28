@@ -49,7 +49,7 @@ const HomeScreen = () => {
       </TouchableOpacity>
     );
   };
-
+  console.log("HomeScreen");
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>

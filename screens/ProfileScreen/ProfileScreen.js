@@ -13,11 +13,13 @@ import { Image } from "react-native";
 import { fetchUserToken } from "../../utils";
 import { useAuthContext } from "../../contexts/AuthContext";
 import axios from "axios";
+import { ModalEditProfile } from "../../components";
 
 const ProfileScreen = () => {
   const [user, setUser] = useState(null);
   const { auth } = useAuthContext();
   const [refreshing, setRefreshing] = useState(false);
+  const [isModalEdit, setIsModalEdit] = useState(false);
   useEffect(() => {
     fetchData();
   }, [auth]);
@@ -39,7 +41,6 @@ const ProfileScreen = () => {
     await fetchData();
     setRefreshing(false);
   };
-  const handleChangeImage = () => {};
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -60,7 +61,7 @@ const ProfileScreen = () => {
             />
             <TouchableOpacity
               style={styles.buttonEdit}
-              onPress={handleChangeImage}
+              onPress={() => setIsModalEdit(true)}
             >
               <MaterialCommunityIcons name="pencil" size={20} color="#FFFFFF" />
             </TouchableOpacity>
@@ -117,6 +118,10 @@ const ProfileScreen = () => {
           </View>
         </View>
       </ScrollView>
+      <ModalEditProfile
+        isModalEdit={isModalEdit}
+        setIsModalEdit={setIsModalEdit}
+      />
     </View>
   );
 };
