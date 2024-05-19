@@ -40,7 +40,6 @@ const MessageChat = () => {
   const route = useRoute();
   const { receiverId } = route.params;
   const { axiosInstanceWithAuth, userIdFromToken } = useAuthContext();
-
   useEffect(() => {
     const fetchUserReceiver = async () => {
       try {
@@ -56,7 +55,6 @@ const MessageChat = () => {
     };
     fetchUserReceiver();
     const unsubscribe = fetchMessagesAndReceiver();
-
     return () => {
       // Clean up the listener when the component unmounts
       unsubscribe();
@@ -102,7 +100,6 @@ const MessageChat = () => {
       setMessages([]);
     }
   };
-
   const handleSend = async () => {
     if (content.trim()) {
       try {
@@ -121,7 +118,6 @@ const MessageChat = () => {
       }
     }
   };
-
   const renderItemChat = ({ item }) => (
     <View style={styles.messageContainer}>
       <Text style={styles.timestamp}>
