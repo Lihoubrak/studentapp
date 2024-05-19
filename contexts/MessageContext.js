@@ -1,31 +1,50 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
+import { onSnapshot, collection } from "firebase/firestore";
 import { useAuthContext } from "./AuthContext";
-import axios from "axios";
+import { useFirebase } from "./FirebaseContext";
 
 const MessageContext = createContext();
 export const useMessageContext = () => useContext(MessageContext);
+
 export const MessageProvider = ({ children }) => {
   const [messageCount, setMessageCount] = useState(0);
-  const { auth } = useAuthContext();
-  console.log("MessageProvider");
+  const { userIdFromToken } = useAuthContext();
+  const { db } = useFirebase();
+
   useEffect(() => {
-    if (auth) fetchMessageCount();
-  }, []);
-  const fetchMessageCount = async () => {
-    try {
-      const response = await axios.get(
-        `http://192.168.1.4:3000/messages/v16/number-message`,
-        { headers: { Authorization: `Bearer ${auth}` } }
-      );
-      if (response.status === 200) {
-        setMessageCount(response.data.count);
-      } else {
-        console.error("Failed to fetch message count:", response.status);
+    const fetchMessageCount = () => {
+      try {
+        const messagesCollection = collection(db, "messages");
+        const unsubscribe = onSnapshot(messagesCollection, (snapshot) => {
+          let count = 0;
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            // Check if the message is sent to the current user and is not seen by the current user
+            if (
+              data.receiverId === userIdFromToken &&
+              !data.seenBy[userIdFromToken]
+            ) {
+              count++;
+            }
+          });
+          setMessageCount(count);
+        });
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error fetching message count:", error);
       }
-    } catch (error) {
-      console.error("Error fetching message count:", error);
-    }
-  };
+    };
+
+    const unsubscribe = fetchMessageCount();
+
+    // Clean up the subscription when the component unmounts or userIdFromToken changes
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [userIdFromToken]);
+
   return (
     <MessageContext.Provider value={{ messageCount, setMessageCount }}>
       {children}

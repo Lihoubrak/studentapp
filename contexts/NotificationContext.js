@@ -1,31 +1,44 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useAuthContext } from "./AuthContext";
-import axios from "axios";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { useFirebase } from "./FirebaseContext";
 
 const NotificationContext = createContext();
 export const useNotificationContext = () => useContext(NotificationContext);
+
 export const NotificationProvider = ({ children }) => {
+  const { userIdFromToken } = useAuthContext();
   const [notificationCount, setNotificationCount] = useState(0);
-  const { auth } = useAuthContext();
-  console.log("NotificationProvider");
+  const { db } = useFirebase();
   useEffect(() => {
-    if (auth) fetchNotificationCount();
-  }, []);
-  const fetchNotificationCount = async () => {
-    try {
-      const response = await axios.get(
-        `http://192.168.1.4:3000/notifications/v15/number-notification`,
-        { headers: { Authorization: `Bearer ${auth}` } }
-      );
-      if (response.status === 200) {
-        setNotificationCount(response.data.count);
-      } else {
-        console.error("Failed to fetch notification count:", response.status);
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, "notifications"),
+        where("recipients", "array-contains", {
+          userId: userIdFromToken,
+          isSeen: false,
+        })
+      ),
+      (snapshot) => {
+        let count = 0;
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (
+            data.recipients.some(
+              (recipient) =>
+                recipient.userId === userIdFromToken && !recipient.isSeen
+            )
+          ) {
+            count++;
+          }
+        });
+        setNotificationCount(count);
       }
-    } catch (error) {
-      console.error("Error fetching notification count:", error);
-    }
-  };
+    );
+
+    return () => unsubscribe();
+  }, [userIdFromToken]);
+
   return (
     <NotificationContext.Provider
       value={{ notificationCount, setNotificationCount }}
@@ -34,4 +47,5 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   );
 };
+
 export default NotificationContext;

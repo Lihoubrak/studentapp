@@ -1,122 +1,122 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import axios from "axios";
+import { useNavigation } from "@react-navigation/native";
+import {
+  collection,
+  query,
+  onSnapshot,
+  orderBy,
+  getDoc,
+  doc,
+} from "firebase/firestore";
 import { useAuthContext } from "../../contexts/AuthContext";
-import { useSocketContext } from "../../contexts/SocketContext";
-import { useNotificationContext } from "../../contexts/NotificationContext";
+import { useFirebase } from "../../contexts/FirebaseContext";
 
 const NotificationScreen = () => {
   const navigation = useNavigation();
-  const { auth } = useAuthContext();
-  const { socket } = useSocketContext();
+  const { db } = useFirebase();
   const [notifications, setNotifications] = useState([]);
-  const { setNotificationCount } = useNotificationContext();
+  const [loading, setLoading] = useState(true);
+  const { userIdFromToken } = useAuthContext();
   const flatListRef = useRef(null);
-  console.log("NotificationScreen");
-  useEffect(() => {
-    console.log("newNotification Socket");
-    socket?.on("newNotification", handleNewNotification);
 
-    return () => {
-      socket?.off("newNotification", handleNewNotification);
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const q = query(
+          collection(db, "notifications"),
+          orderBy("sentAt", "desc")
+        );
+
+        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+          const userNotifications = [];
+          for (const doc of querySnapshot.docs) {
+            const data = doc.data();
+            const recipients = data.recipients || [];
+
+            recipients.forEach((recipient) => {
+              if (recipient.userId === userIdFromToken) {
+                userNotifications.push({
+                  id: doc.id,
+                  data: data,
+                  recipients: recipients,
+                });
+              }
+            });
+          }
+          setNotifications(userNotifications);
+          setLoading(false);
+        });
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+        setLoading(false);
+      }
     };
-  }, []);
-  useEffect(() => {
-    setNotificationCount(
-      notifications.filter((notification) => !notification.isSeen).length
-    );
-    console.log("useEffect Notifications");
-  }, [notifications]);
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchNotification();
-    }, [])
-  );
-  const fetchNotification = async () => {
-    try {
-      const res = await axios.get(
-        `http://192.168.1.4:3000/notifications/v15/all`,
-        { headers: { Authorization: `Bearer ${auth}` } }
-      );
-      setNotifications(res.data.reverse());
-      scrollToTop();
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-  };
 
-  const handleNewNotification = (newNotification) => {
-    setNotifications((prevNotifications) => [
-      newNotification,
-      ...prevNotifications,
-    ]);
-    scrollToTop();
-  };
+    fetchNotifications();
+  }, []);
 
   const handleClickNotification = (item) => {
     navigation.navigate("notificationdetail", { notificationId: item.id });
   };
 
-  const renderNotification = ({ item }) => (
-    <TouchableOpacity
-      style={styles.notificationContainer}
-      onPress={() => handleClickNotification(item.Notification)}
-    >
-      <View style={styles.notificationHeader}>
-        <View style={styles.headerLeft}>
-          <MaterialCommunityIcons name="bell" size={24} color="#4e74f9" />
-          <Text style={styles.notificationName}>
-            {item?.Notification?.User?.Role?.roleName}
-          </Text>
-        </View>
-        <Text
-          style={[
-            styles.notificationDate,
-            !item.isSeen && styles.NotificationNotSeen,
-          ]}
-        >
-          {new Date(item?.Notification?.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-      <Text
+  const renderNotificationItem = ({ item }) => {
+    const { description, sentAt } = item.data;
+    const isSeen = item.recipients.some(
+      (recipient) => recipient.isSeen && recipient.userId === userIdFromToken
+    );
+    const sentAtDate = sentAt.toDate().toLocaleDateString();
+
+    return (
+      <TouchableOpacity
         style={[
-          styles.notificationTitle,
-          !item.isSeen && styles.NotificationNotSeen,
+          styles.notificationContainer,
+          !isSeen && styles.notificationUnseen,
         ]}
+        onPress={() => handleClickNotification(item)}
       >
-        {item?.Notification?.description}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const scrollToTop = () => {
-    if (flatListRef.current) {
-      flatListRef.current.scrollToOffset({ animated: true, offset: 0 });
-    }
+        <View style={styles.notificationHeader}>
+          <View style={styles.headerLeft}>
+            <MaterialCommunityIcons name="bell" size={24} color="#4e74f9" />
+          </View>
+          <Text style={styles.notificationDate}>{sentAtDate.toString()}</Text>
+        </View>
+        <Text style={styles.notificationTitle}>{description}</Text>
+      </TouchableOpacity>
+    );
   };
-
-  const memoizedRenderNotification = useMemo(() => renderNotification, []);
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Notification</Text>
+        <Text style={styles.headerTitle}>Notifications</Text>
       </View>
-      <FlatList
-        ref={flatListRef}
-        data={notifications}
-        renderItem={memoizedRenderNotification}
-        keyExtractor={(item, index) => index.toString()}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <ActivityIndicator
+          style={styles.loadingIndicator}
+          size="large"
+          color="#4e74f9"
+        />
+      ) : notifications.length > 0 ? (
+        <FlatList
+          ref={flatListRef}
+          data={notifications}
+          renderItem={renderNotificationItem}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <Text style={styles.emptyStateText}>No notifications to show</Text>
+      )}
     </View>
   );
 };
@@ -156,11 +156,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  notificationName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
   notificationDate: {
     fontSize: 14,
     color: "#666",
@@ -169,9 +164,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-  NotificationNotSeen: {
-    color: "#000",
+  notificationUnseen: {
+    backgroundColor: "#f5f5f5",
+  },
+  emptyStateText: {
+    textAlign: "center",
+    marginTop: 20,
     fontSize: 16,
-    fontWeight: "bold",
+    color: "#666",
+  },
+  loadingIndicator: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

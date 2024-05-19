@@ -10,16 +10,20 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useAuthContext } from "../../contexts/AuthContext";
 
-const ModalReportProblem = ({ modalVisible, setModalVisible }) => {
+const ModalReportProblem = ({ modalVisible, setModalVisible, roomId }) => {
   const [images, setImages] = useState([]);
+  const [issueDescription, setIssueDescription] = useState("");
 
-  // Function to handle image selection
+  const { axiosInstanceWithAuth } = useAuthContext();
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       aspect: [4, 3],
       quality: 1,
       allowsMultipleSelection: true,
@@ -37,6 +41,35 @@ const ModalReportProblem = ({ modalVisible, setModalVisible }) => {
     // Close the modal
     setModalVisible(false);
   };
+  const handleReport = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("roomId", roomId);
+      formData.append("issueDescription", issueDescription);
+      images.forEach((image, index) => {
+        formData.append(`images`, {
+          uri: image.uri,
+          name: `image_${index + 1}.jpg`,
+          type: "image/jpeg",
+        });
+      });
+      const response = await axiosInstanceWithAuth.post(
+        `/rooms/v3/report`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      if (response.status === 201) {
+        setImages([]);
+        setModalVisible(false);
+      }
+    } catch (error) {
+      console.error("Error reporting problem:", error);
+    }
+  };
 
   const renderImageItem = ({ item }) => (
     <Image source={{ uri: item.uri }} style={styles.image} />
@@ -51,32 +84,38 @@ const ModalReportProblem = ({ modalVisible, setModalVisible }) => {
         setModalVisible(false);
       }}
     >
-      <View style={styles.centeredView}>
-        <View style={styles.modalView}>
-          <Text style={styles.modalText}>Report a Problem</Text>
-          <FlatList
-            data={images}
-            renderItem={renderImageItem}
-            keyExtractor={(item, index) => index.toString()}
-            style={{ marginBottom: 20 }}
-            horizontal
-          />
-          <TouchableOpacity onPress={pickImage}>
-            <Text style={{ color: "blue", marginBottom: 20 }}>
-              Choose Image
-            </Text>
-          </TouchableOpacity>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your problem"
-            placeholderTextColor="#999999"
-          />
-          <View style={styles.modalButtonContainer}>
-            <Button title="Cancel" onPress={handleCancel} color="#999999" />
-            <Button title="Submit" onPress={() => {}} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.centeredView}
+      >
+        <View>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Report a Problem</Text>
+            <FlatList
+              data={images}
+              renderItem={renderImageItem}
+              keyExtractor={(item, index) => index.toString()}
+              style={{ marginBottom: 20 }}
+              horizontal
+            />
+            <TouchableOpacity onPress={pickImage}>
+              <Text style={{ color: "blue", marginBottom: 20 }}>
+                Choose Image
+              </Text>
+            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your problem"
+              placeholderTextColor="#666"
+              onChangeText={(text) => setIssueDescription(text)}
+            />
+            <View style={styles.modalButtonContainer}>
+              <Button title="Cancel" onPress={handleCancel} color="#999999" />
+              <Button title="Submit" onPress={handleReport} />
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

@@ -1,18 +1,25 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { ActivityIndicator, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-
+import axios from "axios";
+import base64 from "base-64";
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
   const [auth, setAuthState] = useState("");
   const [loading, setLoading] = useState(true);
-  console.log("AuthProvider");
+  const [userIdFromToken, setUserIdFromToken] = useState(null);
   const getAuthState = async () => {
     try {
       const authDataString = await SecureStore.getItemAsync("auth");
       if (authDataString) {
         setAuthState(authDataString);
+        const decodedToken = JSON.parse(
+          base64.decode(authDataString.split(".")[1])
+        );
+        if (decodedToken && decodedToken.id) {
+          setUserIdFromToken(decodedToken.id); // Change to setUserIdFromToken
+        }
       }
     } catch (err) {
       console.error("Error getting auth state:", err);
@@ -25,14 +32,15 @@ const AuthProvider = ({ children }) => {
     try {
       await SecureStore.setItemAsync("auth", auth);
       setAuthState(auth);
-    } catch (error) {
-      console.error("Error setting auth state:", error);
-    }
+      const decodedToken = JSON.parse(base64.decode(auth.split(".")[1]));
+      if (decodedToken && decodedToken.id) {
+        setUserIdFromToken(decodedToken.id);
+      }
+    } catch (error) {}
   };
-
   useEffect(() => {
     getAuthState();
-  }, [auth]);
+  }, []);
 
   if (loading) {
     return (
@@ -42,11 +50,25 @@ const AuthProvider = ({ children }) => {
     );
   }
 
+  const axiosInstanceWithAuth = axios.create({
+    baseURL: "http://192.168.1.4:3000",
+    headers: {
+      Authorization: `Bearer ${auth}`,
+    },
+  });
+
+  const axiosInstance = axios.create({
+    baseURL: "http://192.168.1.4:3000",
+  });
+
   return (
     <AuthContext.Provider
       value={{
         auth,
         setAuth,
+        userIdFromToken,
+        axiosInstanceWithAuth,
+        axiosInstance,
       }}
     >
       {children}

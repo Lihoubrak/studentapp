@@ -1,9 +1,8 @@
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useEffect, useRef, useState, memo } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
-  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -11,126 +10,165 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { useNavigation } from "@react-navigation/native";
 import { ModalAddMessage } from "../../components";
 import { useAuthContext } from "../../contexts/AuthContext";
-import axios from "axios";
-import { useSocketContext } from "../../contexts/SocketContext";
-import { fetchUserToken } from "../../utils";
+import {
+  collection,
+  query,
+  getDocs,
+  where,
+  orderBy,
+  doc,
+  getDoc,
+  onSnapshot,
+} from "firebase/firestore";
+import { useFirebase } from "../../contexts/FirebaseContext";
 
 const MessageScreen = () => {
   const navigation = useNavigation();
+  const { userIdFromToken } = useAuthContext();
   const [isModalVisible, setModalVisible] = useState(false);
+  const { db } = useFirebase();
   const [chats, setChats] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const { auth } = useAuthContext();
-  const [refreshing, setRefreshing] = useState(false);
-  const { onlineUsers, socket } = useSocketContext();
-  const tokenRef = useRef(null);
-  const handleListMessageRef = useRef(handleListMessage);
-
-  console.log("MessageScreen component rendered");
-
+  const [loading, setLoading] = useState(true);
+  const handleClickChat = (item) => {
+    navigation.navigate("messagechat", { receiverId: item.userId });
+  };
   useEffect(() => {
-    console.log("asynchronously");
-    const fetchToken = async () => {
+    const fetchChats = async () => {
       try {
-        const token = await fetchUserToken(auth);
-        tokenRef.current = token.id;
+        const sentMessagesQuery = query(
+          collection(db, "messages"),
+          where("senderId", "==", userIdFromToken),
+          orderBy("timestamp", "desc")
+        );
+        const receivedMessagesQuery = query(
+          collection(db, "messages"),
+          where("receiverId", "==", userIdFromToken),
+          orderBy("timestamp", "desc")
+        );
+
+        const [sentMessagesSnapshot, receivedMessagesSnapshot] =
+          await Promise.all([
+            getDocs(sentMessagesQuery),
+            getDocs(receivedMessagesQuery),
+          ]);
+
+        const lastMessages = {};
+
+        sentMessagesSnapshot.forEach((doc) => {
+          const message = doc.data();
+          const receiverId = message.receiverId;
+
+          if (
+            !lastMessages[receiverId] ||
+            message.timestamp > lastMessages[receiverId].timestamp
+          ) {
+            lastMessages[receiverId] = message;
+          }
+        });
+
+        receivedMessagesSnapshot.forEach((doc) => {
+          const message = doc.data();
+          const senderId = message.senderId;
+
+          if (
+            !lastMessages[senderId] ||
+            message.timestamp > lastMessages[senderId].timestamp
+          ) {
+            lastMessages[senderId] = message;
+          }
+        });
+
+        const chatDetails = await Promise.all(
+          Object.keys(lastMessages).map(async (userId) => {
+            const userDoc = await getDoc(doc(db, "users", userId));
+            const userData = userDoc.data();
+
+            const {
+              MajorId,
+              RoleId,
+              RoomId,
+              password,
+              expo_push_token,
+              ...filteredUserData
+            } = userData;
+
+            return {
+              userId,
+              user: filteredUserData,
+              lastMessage: lastMessages[userId],
+            };
+          })
+        );
+
+        setChats(chatDetails);
+        setLoading(false);
       } catch (error) {
-        console.error("Error fetching user token:", error);
+        console.error("Error fetching chats:", error);
       }
     };
-    fetchToken();
-  }, [auth]);
 
-  useEffect(() => {
-    console.log("listMessage Socket");
-    socket?.on("listMessage", handleListMessageRef.current); // Subscribe to the event using the memoized function reference
-    return () => {
-      socket?.off("listMessage", handleListMessageRef.current); // Unsubscribe from the event using the same reference
-    };
+    fetchChats();
+
+    // Set up real-time listener for new messages
+    const unsubscribe = onSnapshot(collection(db, "messages"), (snapshot) => {
+      fetchChats(); // Update the chat list whenever a new message arrives
+    });
+
+    return () => unsubscribe(); // Cleanup listener on unmount
   }, []);
-  const handleListMessage = (listMessage) => {
-    setChats((prevChats) => [...prevChats, listMessage]);
-  };
-  const fetchChats = async () => {
-    try {
-      const res = await axios.get(
-        `http://192.168.1.4:3000/messages/v16/users-with-conversations`,
-        {
-          headers: {
-            Authorization: `Bearer ${auth}`,
-          },
-        }
-      );
-      setChats(res.data);
-    } catch (error) {
-      console.error("Error fetching chats:", error);
-    }
-  };
 
-  const handleClickChat = (item) => {
-    navigation.navigate("messagechat", { receiverId: item.id });
-  };
-
-  const filterChats = chats.filter(
-    (students) =>
-      students.firstName?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
-      students.lastName?.toLowerCase().includes(searchQuery?.toLowerCase())
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchChats();
-    setRefreshing(false);
-  };
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchChats();
-    }, [])
-  );
   const renderItem = ({ item }) => {
-    const isCurrentUserReceiver = item.receiver_id === tokenRef.current;
-    const isMessageSeenByCurrentUser = isCurrentUserReceiver
-      ? item.seen_by_user2
-      : true;
-    const lastMessageStyle =
-      isCurrentUserReceiver && !isMessageSeenByCurrentUser
-        ? styles.lastMessageNotSeen
-        : styles.lastMessage;
+    const { user, lastMessage } = item;
+    const isSender = lastMessage.senderId === userIdFromToken;
+    const hasSeenMessage = isSender
+      ? true
+      : lastMessage.seenBy[userIdFromToken];
 
     return (
       <TouchableOpacity onPress={() => handleClickChat(item)}>
         <View style={styles.chatItem}>
-          {onlineUsers &&
-            onlineUsers.some((user) => user.userId === item.id) && (
-              <MaterialIcons
-                name={"fiber-manual-record"}
-                size={15}
-                color={"#4CAF50"}
-                style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
-              />
-            )}
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          <Image
+            source={{ uri: user.avatar?.replace("localhost", "192.168.1.4") }}
+            style={styles.avatar}
+          />
           <View style={styles.chatContent}>
             <Text style={styles.username}>
-              {item.firstName} {item.lastName}
+              {user.firstName} {user.lastName}
             </Text>
-            <Text style={[styles.lastMessage, lastMessageStyle]}>
-              {item.lastMessage}
-            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text
+                style={[
+                  styles.lastMessage,
+                  !hasSeenMessage && styles.lastMessageNotSeen,
+                ]}
+              >
+                {lastMessage.content}
+              </Text>
+              <Text
+                style={[
+                  styles.time,
+                  !hasSeenMessage && styles.lastMessageNotSeen,
+                ]}
+              >
+                {lastMessage.timestamp.toDate().toLocaleDateString()}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.time}>
-            {new Date(item.sendDate).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
         </View>
       </TouchableOpacity>
     );
   };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -142,38 +180,45 @@ const MessageScreen = () => {
           <TextInput
             style={styles.textInput}
             placeholder="Search"
+            placeholderTextColor={"#666"}
             value={searchQuery}
             onChangeText={(text) => setSearchQuery(text)}
           />
         </View>
       </View>
-      <FlatList
-        refreshControl={
-          <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
-        }
-        data={filterChats.reverse()}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
+      ) : (
+        <FlatList
+          data={chats.filter(
+            (chat) =>
+              chat.user.firstName
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+              chat.user.lastName
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase())
+          )}
+          keyExtractor={(item) => item.userId}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => {
-          setModalVisible(true);
-        }}
+        onPress={() => setModalVisible(true)}
       >
         <MaterialIcons name="add" size={24} color="white" />
       </TouchableOpacity>
       <ModalAddMessage
         modalVisible={isModalVisible}
         setModalVisible={setModalVisible}
-        auth={auth}
       />
     </View>
   );
 };
-
-export default MessageScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -203,7 +248,6 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     elevation: 5,
   },
-
   searchContent: {
     flexDirection: "row",
     alignItems: "center",
@@ -213,12 +257,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F0F0F0",
   },
-
   textInput: {
     flex: 1,
     marginLeft: 8,
+    color: "#333",
   },
-
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -248,6 +291,7 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     color: "#999999",
+    marginLeft: 8,
   },
   addButton: {
     position: "absolute",
@@ -262,7 +306,14 @@ const styles = StyleSheet.create({
   },
   lastMessageNotSeen: {
     color: "#000",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
+
+export default MessageScreen;

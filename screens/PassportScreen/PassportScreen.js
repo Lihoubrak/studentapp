@@ -1,36 +1,96 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
+import { useAuthContext } from "../../contexts/AuthContext";
+import axios from "axios";
+import { ModalCreatePassport, ModalEditPassport } from "../../components";
 
 const PassportScreen = () => {
   const navigation = useNavigation();
-  const passportInfo = {
-    fullName: "John Doe",
-    dateOfBirth: "January 1, 1990",
-    sex: "Male",
-    type: "Regular",
-    code: "123456",
-    nationality: "Country",
-    placeOfBirth: "City, Country",
-    placeOfIssue: "City, Country",
-    dateOfExpiry: "December 31, 2025",
-    dateOfIssue: "January 1, 2020",
-    passportNumber: "ABC123456",
-    isApproved: false, // Thêm trạng thái phê duyệt
-  };
+  const { axiosInstanceWithAuth } = useAuthContext();
+  const [passportInfo, setPassportInfo] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEnterModal, setShowEnterModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleEdit = () => {
-    // Kiểm tra nếu thông tin đã được phê duyệt
-    if (passportInfo.isApproved) {
-      // Thực hiện chỉnh sửa
-      // Redirect hoặc hiển thị màn hình chỉnh sửa
-    } else {
-      // Hiển thị thông báo cho người dùng
-      alert("Your changes need to be approved by admin first.");
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const res = await axiosInstanceWithAuth.get(`/passports/v6/all`);
+      setPassportInfo(res.data);
+    } catch (error) {
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleEnter = () => {
+    if (passportInfo) {
+      return (
+        <TouchableOpacity onPress={handleEdit}>
+          <View style={styles.buttonContainer}>
+            <MaterialCommunityIcons name="pencil" size={24} color="#FFFFFF" />
+            <Text style={styles.buttonText}>Edit</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    } else {
+      return (
+        <TouchableOpacity onPress={() => setShowEnterModal(true)}>
+          <View style={styles.buttonContainer}>
+            <Text style={styles.buttonText}>Enter</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+  };
+
+  const handleEdit = async () => {
+    if (passportInfo.isApprove) {
+      setShowEditModal(true);
+    } else {
+      Alert.alert(
+        "Confirmation",
+        "Your changes are pending approval by admin. Please wait.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "OK",
+            onPress: async () => {
+              try {
+                const res = await axiosInstanceWithAuth.put(
+                  `/passports/v6/edit/${passportInfo?.id}`,
+                  {}
+                );
+              } catch (error) {}
+            },
+          },
+        ]
+      );
+    }
+  };
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4e74f9" />
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -43,113 +103,98 @@ const PassportScreen = () => {
         <Text style={styles.headerTitle}>Passport</Text>
       </View>
 
-      <View
-        style={{
-          alignItems: "center",
-          justifyContent: "center",
-          marginTop: 30,
-        }}
-      >
+      <View style={styles.passportImageContainer}>
         <Image
-          source={require("../../assets/icons/khmernewyear.jpg")}
+          source={{
+            uri: passportInfo?.image.replace("localhost", "192.168.1.4"),
+          }}
           style={styles.passportImage}
+          alt="Passport Image"
         />
-        <View style={styles.infoContainer}>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="passport" size={25} color="#4e74f9" />
-            <Text style={styles.label}>Passport Number:</Text>
-            <Text style={styles.value}>{passportInfo.passportNumber}</Text>
-          </View>
-        </View>
       </View>
 
       <View style={styles.passportInfoContainer}>
-        <View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="account" size={25} color="#4e74f9" />
-            <Text style={styles.label}>Full Name:</Text>
-            <Text style={styles.value}>{passportInfo.fullName}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="calendar" size={25} color="#4e74f9" />
-            <Text style={styles.label}>Date of Birth:</Text>
-            <Text style={styles.value}>{passportInfo.dateOfBirth}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="gender-male-female"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Sex:</Text>
-            <Text>{passportInfo.sex}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="card-text"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Type:</Text>
-            <Text style={styles.value}>{passportInfo.type}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="card-bulleted"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Code:</Text>
-            <Text style={styles.value}>{passportInfo.code}</Text>
-          </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Passport Number:</Text>
+          <Text style={styles.value}>{passportInfo?.passportNumber}</Text>
         </View>
-
-        <View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="earth" size={25} color="#4e74f9" />
-            <Text style={styles.label}>Nationality:</Text>
-            <Text style={styles.value}>{passportInfo.nationality}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="map-marker"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Place of Birth:</Text>
-            <Text style={styles.value}>{passportInfo.placeOfBirth}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="map-marker"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Place of Issue:</Text>
-            <Text style={styles.value}>{passportInfo.placeOfIssue}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons
-              name="calendar-clock"
-              size={25}
-              color="#4e74f9"
-            />
-            <Text style={styles.label}>Date of Expiry:</Text>
-            <Text style={styles.value}>{passportInfo.dateOfExpiry}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MaterialCommunityIcons name="calendar" size={25} color="#4e74f9" />
-            <Text style={styles.label}>Date of Issue:</Text>
-            <Text style={styles.value}>{passportInfo.dateOfIssue}</Text>
-          </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Full Name:</Text>
+          <Text style={styles.value}>
+            {passportInfo?.firstName} {passportInfo?.lastName}
+          </Text>
         </View>
-        <TouchableOpacity onPress={handleEdit}>
-          <View style={styles.buttonContainer}>
-            <MaterialCommunityIcons name="pencil" size={24} color="#FFFFFF" />
-            <Text style={styles.buttonText}>Edit</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Date of Birth:</Text>
+          <Text style={styles.value}>
+            {passportInfo?.dateofbirth &&
+              new Date(
+                passportInfo?.dateofbirth._seconds * 1000 +
+                  passportInfo?.dateofbirth._nanoseconds / 1000000
+              ).toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Sex:</Text>
+          <Text style={styles.value}>{passportInfo?.gender}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Type:</Text>
+          <Text style={styles.value}>{passportInfo?.type}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Code:</Text>
+          <Text style={styles.value}>{passportInfo?.code}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Nationality:</Text>
+          <Text style={styles.value}>{passportInfo?.nationality}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Place of Birth:</Text>
+          <Text style={styles.value}>{passportInfo?.placeofbirth}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Place of Issue:</Text>
+          <Text style={styles.value}>{passportInfo?.placeofissue}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Date of Expiry:</Text>
+          <Text style={styles.value}>
+            {passportInfo?.dateofexpiry &&
+              new Date(
+                passportInfo?.dateofexpiry._seconds * 1000 +
+                  passportInfo?.dateofexpiry._nanoseconds / 1000000
+              ).toLocaleDateString()}
+          </Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.label}>Date of Issue:</Text>
+          <Text style={styles.value}>
+            {passportInfo?.dateofissue &&
+              new Date(
+                passportInfo?.dateofissue._seconds * 1000 +
+                  passportInfo?.dateofissue._nanoseconds / 1000000
+              ).toLocaleDateString()}
+          </Text>
+        </View>
+        {handleEnter()}
       </View>
+
+      {passportInfo && passportInfo.isApprove && (
+        <ModalEditPassport
+          isVisible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          passportId={passportInfo.id}
+          fetchData={fetchData}
+        />
+      )}
+
+      <ModalCreatePassport
+        isVisible={showEnterModal}
+        onClose={() => setShowEnterModal(false)}
+        fetchData={fetchData}
+      />
     </View>
   );
 };
@@ -160,6 +205,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerContainer: {
     backgroundColor: "#4e74f9",
@@ -181,8 +231,17 @@ const styles = StyleSheet.create({
     left: 20,
     top: 50,
   },
+  passportImageContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 30,
+  },
+  passportImage: {
+    width: 350,
+    height: 200,
+    resizeMode: "contain",
+  },
   passportInfoContainer: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
   },
@@ -193,7 +252,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: "bold",
-    marginLeft: 10,
     marginRight: 10,
     fontSize: 16,
     color: "#333333",
@@ -201,15 +259,6 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: "#555555",
-  },
-  passportImage: {
-    width: 350,
-    height: 200,
-    resizeMode: "contain",
-  },
-  infoContainer: {
-    alignItems: "center",
-    marginTop: 20,
   },
   buttonContainer: {
     flexDirection: "row",

@@ -2,6 +2,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   StyleSheet,
@@ -10,23 +11,36 @@ import {
   View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 const ProfileDetailStudent = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId } = route.params;
   const [user, setUser] = useState(null);
+  const { axiosInstance } = useAuthContext();
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchUser = async () => {
-      const res = await axios.get(
-        `http://192.168.1.4:3000/users/v1/${userId}/detail`
-      );
-      setUser(res.data);
+      try {
+        const res = await axiosInstance.get(`/users/v1/detail/${userId}`);
+        setUser(res.data);
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-    if (userId) {
-      fetchUser();
-    }
-  }, [userId]);
+    fetchUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4e74f9" />
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -46,7 +60,10 @@ const ProfileDetailStudent = () => {
           />
         </View>
         <View style={styles.profileContainer}>
-          <Image source={{ uri: user?.avatar }} style={styles.profileImage} />
+          <Image
+            source={{ uri: user?.avatar.replace("localhost", "192.168.1.4") }}
+            style={styles.profileImage}
+          />
           <View style={styles.profileTextContainer}>
             <Text style={styles.profileTextName}>
               {user?.firstName} {user?.lastName}
@@ -75,7 +92,7 @@ const ProfileDetailStudent = () => {
               color="#2E8B57"
             />
             <Text style={styles.detailLabel}>DEGREE:</Text>
-            <Text style={styles.detailValue}>Undergraduate</Text>
+            <Text style={styles.detailValue}>{user?.degree}</Text>
           </View>
           <View style={styles.detailItem}>
             <MaterialCommunityIcons
@@ -200,6 +217,11 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 16,
     flexWrap: "wrap", // Added to allow text to wrap onto the next line if it exceeds the width
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

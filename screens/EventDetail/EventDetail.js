@@ -9,7 +9,7 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { ModalBuyTicketEvent, ModalRegisterEvent } from "../../components";
-import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 const EventDetail = () => {
   const navigation = useNavigation();
@@ -18,18 +18,24 @@ const EventDetail = () => {
   const route = useRoute();
   const [eventDetail, setEventDetail] = useState(null);
   const { eventId } = route.params;
+  const { axiosInstance } = useAuthContext();
   useEffect(() => {
     const fetchDetail = async () => {
-      const res = await axios(
-        `http://192.168.1.4:3000/events/v9/detailevent/${eventId}`
-      );
-      setEventDetail(res.data);
+      try {
+        const res = await axiosInstance.get(
+          `/events/v9/detailevent/${eventId}`
+        );
+        setEventDetail(res.data);
+      } catch (error) {
+        console.error("Error fetching event detail:", error);
+      }
     };
     fetchDetail();
   }, [eventId]);
-  const handleRegistrationPress = () => {
+  const handleRegistrationPress = async () => {
     setRegisterModalVisible(true);
   };
+
   const handleBuyTicketPress = () => {
     setModalVisible(true);
   };
@@ -51,27 +57,53 @@ const EventDetail = () => {
           <Text style={styles.description}>
             {eventDetail?.eventDescription}
           </Text>
-          <Text style={styles.date}>DateStart: {eventDetail?.eventDate}</Text>
-          <Text style={styles.date}>DateEnd: {eventDetail?.eventExpiry}</Text>
+          <Text style={styles.date}>
+            Start Date:
+            {new Date(
+              eventDetail?.eventDate._seconds * 1000
+            ).toLocaleDateString()}
+          </Text>
+          <Text style={styles.date}>
+            End Date:
+            {new Date(
+              eventDetail?.eventExpiry._seconds * 1000
+            ).toLocaleDateString()}
+          </Text>
           <Text style={styles.location}>
             Location: {eventDetail?.eventLocation}
           </Text>
+          {/* Display food menu */}
           <View style={styles.additionalInfoContainer}>
             <MaterialCommunityIcons name="food" size={24} color="#FF6347" />
             <View style={{ flex: 1 }}>
               <Text style={styles.additionalInfoTitle}>Food Menu:</Text>
-              <Text style={styles.additionalInfo}>{eventDetail?.foodMenu}</Text>
+              {eventDetail?.foodMenu.map((item, index) => (
+                <Text key={index} style={styles.additionalInfo}>
+                  - {item.name}
+                </Text>
+              ))}
             </View>
           </View>
+          {/* Display payment per student */}
           <View style={styles.additionalInfoContainer}>
-            <MaterialCommunityIcons name="cash" size={24} color="#32CD32" />
+            <MaterialCommunityIcons name="ticket" size={24} color="#1E90FF" />
             <Text style={[styles.additionalInfo, styles.boldText]}>
-              Payment per Student:
+              Payment Per Student:
             </Text>
             <Text style={styles.additionalInfo}>
               {eventDetail?.paymentPerStudent}
             </Text>
           </View>
+          <View style={styles.additionalInfoContainer}>
+            <MaterialCommunityIcons name="cash" size={24} color="#32CD32" />
+            <Text style={[styles.additionalInfo, styles.boldText]}>
+              Number Of Ticket:
+            </Text>
+            <Text style={styles.additionalInfo}>
+              {eventDetail?.numberOfTicket}
+            </Text>
+          </View>
+          {/* Display ticket price */}
           <View style={styles.additionalInfoContainer}>
             <MaterialCommunityIcons name="ticket" size={24} color="#1E90FF" />
             <Text style={[styles.additionalInfo, styles.boldText]}>
@@ -81,13 +113,16 @@ const EventDetail = () => {
               {eventDetail?.ticketPrice}
             </Text>
           </View>
+          {/* Display events in program */}
           <View style={styles.additionalInfoContainer}>
             <MaterialCommunityIcons name="calendar" size={24} color="#FFD700" />
             <View style={{ flex: 1 }}>
               <Text style={styles.additionalInfoTitle}>Events in Program:</Text>
-              <Text style={styles.additionalInfo}>
-                - {eventDetail?.eventsInProgram}
-              </Text>
+              {eventDetail?.eventsInProgram.map((item, index) => (
+                <Text key={index} style={styles.additionalInfo}>
+                  - {item.eventName}
+                </Text>
+              ))}
             </View>
           </View>
           {/* Button for registering */}
@@ -110,17 +145,18 @@ const EventDetail = () => {
       <ModalBuyTicketEvent
         modalVisible={isModalVisible}
         setModalVisible={setModalVisible}
+        eventId={eventId}
       />
+      {/* Modal for registering */}
       <ModalRegisterEvent
         modalVisible={isRegisterModalVisible}
         setModalVisible={setRegisterModalVisible}
+        eventId={eventId}
       />
     </View>
   );
 };
-
 export default EventDetail;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

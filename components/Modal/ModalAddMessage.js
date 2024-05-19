@@ -12,52 +12,47 @@ import {
   FlatList,
   TextInput,
 } from "react-native";
-import { useSocketContext } from "../../contexts/SocketContext";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-const ModalAddMessage = ({ modalVisible, setModalVisible, auth }) => {
+import { useAuthContext } from "../../contexts/AuthContext";
+
+const ModalAddMessage = ({ modalVisible, setModalVisible }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const navigation = useNavigation();
   const [students, setStudents] = useState([]);
-  const { onlineUsers } = useSocketContext();
+  const { axiosInstanceWithAuth } = useAuthContext();
+  useEffect(() => {
+    fetchAllStudent();
+  }, []);
   const fetchAllStudent = async () => {
-    const res = await axios.get(`http://192.168.1.4:3000/users/v1/alluser`, {
-      headers: {
-        Authorization: `Bearer ${auth}`,
-      },
-    });
-    setStudents(res.data);
+    try {
+      const res = await axiosInstanceWithAuth.get(`/users/v1/alluser`);
+      setStudents(res.data);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
   };
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchAllStudent();
-    }, [])
-  );
+
   const filterStudent = students.filter(
-    (students) =>
-      students.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      students.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+    (student) =>
+      student.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.lastName.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const handleClickChat = (item) => {
-    setModalVisible(false);
     navigation.navigate("messagechat", { receiverId: item.id });
+    setModalVisible(false);
   };
 
   const handleCancel = () => {
     setModalVisible(false);
     setSearchQuery("");
   };
+
   const renderItem = ({ item }) => (
     <TouchableOpacity onPress={() => handleClickChat(item)}>
       <View style={styles.chatItem}>
-        {onlineUsers && onlineUsers.some((user) => user.userId === item.id) && (
-          <MaterialIcons
-            name={"fiber-manual-record"}
-            size={15}
-            color={"#4CAF50"}
-            style={{ position: "absolute", top: 15, left: 55, zIndex: 10 }}
-          />
-        )}
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <Image
+          source={{ uri: item.avatar.replace("localhost", "192.168.1.4") }}
+          style={styles.avatar}
+        />
         <View style={styles.chatContent}>
           <Text style={styles.username}>
             {item.firstName} {item.lastName}

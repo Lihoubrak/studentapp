@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,52 +14,58 @@ import {
   useNavigation,
   useRoute,
 } from "@react-navigation/native";
-import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
-import RenderHtml from "react-native-render-html";
-import WebView from "react-native-webview";
-import IframeRenderer, { iframeModel } from "@native-html/iframe-plugin";
+import { WebView } from "react-native-webview";
+
 const NotificationDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { notificationId } = route.params;
   const [notificationDetail, setNotificationDetail] = useState(null);
-  const { auth } = useAuthContext();
-  const { width } = useWindowDimensions();
-  console.log("NotificationDetail");
+  const [loading, setLoading] = useState(true);
+  const { axiosInstanceWithAuth } = useAuthContext();
+  const { width, height } = useWindowDimensions();
+
   const fetchNotification = async () => {
     try {
-      const res = await axios.get(
-        `http://192.168.1.4:3000/notifications/v15/detail/${notificationId}`
+      const res = await axiosInstanceWithAuth.get(
+        `notifications/v15/detail/${notificationId}`
       );
       setNotificationDetail(res.data);
+      setLoading(false); // Set loading to false after receiving response
     } catch (error) {
       console.error("Error fetching notification detail:", error);
+      setLoading(false); // Set loading to false in case of error
     }
   };
+
   useFocusEffect(
     React.useCallback(() => {
+      setLoading(true); // Set loading to true when the screen is focused
       fetchNotification();
     }, [notificationId])
   );
-  useEffect(() => {
-    console.log("NotificationDetail useEffect");
-    const updateSeenNotification = async () => {
-      try {
-        await axios.put(
-          `http://192.168.1.4:3000/notifications/v15/user-seen-notification/${notificationId}`,
-          null,
-          { headers: { Authorization: `Bearer ${auth}` } }
-        );
-      } catch (error) {
-        console.error("Error updating seen notification:", error);
-      }
-    };
-    updateSeenNotification();
-  }, [notificationId]);
-  const source = {
-    html: notificationDetail?.content,
-  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4e74f9" />
+      </View>
+    );
+  }
+  const htmlContent = `
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+      ${notificationDetail.data.content}
+    </body>
+  </html>
+`;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -70,21 +77,17 @@ const NotificationDetail = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notification Detail</Text>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.bodyContainer}>
           <Text style={styles.notificationTitle}>
-            {notificationDetail?.description}
+            {notificationDetail?.data.description}
           </Text>
-          <View style={{ alignItems: "center" }}>
-            {notificationDetail && notificationDetail.content && (
-              <RenderHtml
-                WebView={WebView}
-                renderers={{ iframe: IframeRenderer }}
-                source={source}
-                contentWidth={width}
-                customHTMLElementModels={{
-                  iframe: iframeModel,
-                }}
+          <View style={{ width: width, height: height }}>
+            {notificationDetail && notificationDetail.data.content && (
+              <WebView
+                originWhitelist={["*"]}
+                source={{ html: htmlContent }}
+                style={styles.webview}
               />
             )}
           </View>
@@ -108,12 +111,18 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
     color: "white",
     fontWeight: "bold",
     marginLeft: 10,
+  },
+  backButton: {
+    position: "absolute",
+    left: 20,
+    top: 50,
   },
   bodyContainer: {
     flex: 1,
@@ -125,12 +134,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 10,
   },
-  notificationDescription: {
-    fontSize: 16,
-    marginBottom: 10,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  notificationTimestamp: {
-    fontSize: 14,
-    color: "#888",
+  webview: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
   },
 });

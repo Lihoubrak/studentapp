@@ -1,37 +1,56 @@
-import React, { useContext, useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import axios from "axios";
 import { useAuthContext } from "../../contexts/AuthContext";
+import { ModalPickerMonth, ModalPickerYear } from "../../components";
 
 const WaterScreen = () => {
   const navigation = useNavigation();
-  // Sample water information
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [water, setWater] = useState(null);
-  const { auth } = useAuthContext();
-  useEffect(() => {
-    const fetchwater = async () => {
-      try {
-        const res = await axios.get(
-          `http://192.168.1.4:3000/waters/v8/user/all?year=${selectedYear}&month=${selectedMonth}`,
-          {
-            headers: {
-              Authorization: `Bearer ${auth}`,
-            },
-          }
-        );
-        setWater(res.data);
-      } catch (error) {}
-    };
-
-    if (auth) {
-      fetchwater();
+  const [loading, setLoading] = useState(false);
+  const { axiosInstanceWithAuth } = useAuthContext();
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const fetchWater = async (year, month) => {
+    setLoading(true);
+    try {
+      const res = await axiosInstanceWithAuth.get(
+        `/waters/v8/user/all?year=${year}&month=${month}`
+      );
+      setWater(res.data);
+    } catch (error) {
+      setWater([]);
+    } finally {
+      setLoading(false);
     }
-  }, [auth, selectedYear, selectedMonth]);
+  };
+
+  useEffect(() => {
+    fetchWater(currentYear, currentMonth);
+  }, []);
+
+  useEffect(() => {
+    if (
+      selectedMonth &&
+      selectedYear &&
+      currentMonth !== selectedMonth &&
+      currentYear !== selectedYear
+    ) {
+      fetchWater(selectedYear, selectedMonth);
+      return;
+    }
+  }, [selectedYear, selectedMonth]);
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -43,92 +62,123 @@ const WaterScreen = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Water</Text>
       </View>
-      <View style={styles.roomInfoContainer}>
-        <MaterialCommunityIcons name="water" size={40} color="#FFA500" />
-        <Text style={styles.roomTitle}>ROOM {water?.Room.roomNumber}</Text>
-      </View>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedYear}
-          onValueChange={(itemValue, itemIndex) => setSelectedYear(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item
-            label={new Date().getFullYear()}
-            value={new Date().getFullYear()}
-          />
-          <Picker.Item label="2023" value="2023" />
-          <Picker.Item label="2022" value="2022" />
-        </Picker>
-
-        <Picker
-          selectedValue={selectedMonth}
-          onValueChange={(itemValue, itemIndex) => setSelectedMonth(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item
-            label={new Date().toLocaleDateString("en-US", { month: "long" })}
-            value={new Date().getMonth() + 1}
-          />
-          <Picker.Item label="January" value="1" />
-          <Picker.Item label="February" value="2" />
-          <Picker.Item label="March" value="3" />
-          <Picker.Item label="April" value="4" />
-          <Picker.Item label="May" value="5" />
-          <Picker.Item label="June" value="6" />
-          <Picker.Item label="July" value="7" />
-          <Picker.Item label="August" value="8" />
-          <Picker.Item label="September" value="9" />
-          <Picker.Item label="October" value="10" />
-          <Picker.Item label="November" value="11" />
-          <Picker.Item label="December" value="12" />
-        </Picker>
-      </View>
-      <View style={styles.infoContainer}>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="numeric" size={30} color="#FF5733" />
-          <Text style={styles.label}>Old Index:</Text>
-          <Text style={styles.value}>{water?.oldIndex}</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4E74F9" />
         </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="numeric" size={30} color="#3399FF" />
-          <Text style={styles.label}>New Index:</Text>
-          <Text style={styles.value}>{water?.newIndex}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="flash" size={30} color="#33FF57" />
-          <Text style={styles.label}>Total Consumption:</Text>
-          <Text style={styles.value}>{water?.totalConsumption}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="power-plug" size={30} color="#FFC300" />
-          <Text style={styles.label}>Support:</Text>
-          <Text style={styles.value}>{water?.support}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons
-            name="alert-circle"
-            size={30}
-            color="#FF5733"
-          />
-          <Text style={styles.label}>Exceed Limit:</Text>
-          <Text style={styles.value}>{water?.exceedLimit}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons
-            name="currency-usd"
-            size={30}
-            color="#3399FF"
-          />
-          <Text style={styles.label}>Price per kWh:</Text>
-          <Text style={styles.value}>{water?.pricePerKwh}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="cash" size={30} color="#33FF57" />
-          <Text style={styles.label}>Total Amount:</Text>
-          <Text style={styles.value}>{water?.totalAmount}</Text>
-        </View>
-      </View>
+      ) : (
+        <>
+          <View style={styles.roomInfoContainer}>
+            <MaterialCommunityIcons name="water" size={40} color="#FFA500" />
+            <Text style={styles.roomTitle}>ROOM {water?.roomNumber}</Text>
+          </View>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              onPress={() => setShowYearPicker(true)}
+              style={styles.filterButton}
+            >
+              <MaterialCommunityIcons name="filter" size={20} color="#007AFF" />
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  { color: "#666", fontSize: 18 },
+                ]}
+              >
+                {selectedYear ? `Year: ${selectedYear}` : "Select Year"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowMonthPicker(true)}
+              style={styles.filterButton}
+            >
+              <MaterialCommunityIcons name="filter" size={20} color="#007AFF" />
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  { color: "#666", fontSize: 18 },
+                ]}
+              >
+                {selectedMonth ? `Month: ${selectedMonth}` : "Select Month"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.infoContainer}>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons
+                name="numeric"
+                size={30}
+                color="#FF5733"
+              />
+              <Text style={styles.label}>Old Index:</Text>
+              <Text style={styles.value}>{water?.oldIndex}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons
+                name="numeric"
+                size={30}
+                color="#3399FF"
+              />
+              <Text style={styles.label}>New Index:</Text>
+              <Text style={styles.value}>{water?.newIndex}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons name="flash" size={30} color="#33FF57" />
+              <Text style={styles.label}>Total Consumption:</Text>
+              <Text style={styles.value}>{water?.totalConsumption}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons
+                name="power-plug"
+                size={30}
+                color="#FFC300"
+              />
+              <Text style={styles.label}>Support:</Text>
+              <Text style={styles.value}>{water?.support}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons
+                name="alert-circle"
+                size={30}
+                color="#FF5733"
+              />
+              <Text style={styles.label}>Exceed Limit:</Text>
+              <Text style={styles.value}>{water?.exceedLimit}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons
+                name="currency-usd"
+                size={30}
+                color="#3399FF"
+              />
+              <Text style={styles.label}>Price per kWh:</Text>
+              <Text style={styles.value}>{water?.pricePerKwh}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons name="cash" size={30} color="#33FF57" />
+              <Text style={styles.label}>Total Amount:</Text>
+              <Text style={styles.value}>{water?.totalAmount}</Text>
+            </View>
+          </View>
+        </>
+      )}
+      <ModalPickerYear
+        showPicker={showYearPicker}
+        setShowPicker={setShowYearPicker}
+        selectedYear={selectedYear}
+        setSelectedYear={(year) => {
+          setSelectedYear(year);
+          setShowYearPicker(false);
+        }}
+      />
+      <ModalPickerMonth
+        showPicker={showMonthPicker}
+        setShowPicker={setShowMonthPicker}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={(month) => {
+          setSelectedMonth(month);
+          setShowMonthPicker(false);
+        }}
+      />
     </View>
   );
 };
@@ -161,16 +211,25 @@ const styles = StyleSheet.create({
   pickerContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
+    alignItems: "center",
     marginTop: 10,
     marginBottom: 20,
   },
-  picker: {
-    width: "45%",
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
     backgroundColor: "#E5E5E5",
+    borderRadius: 5,
+  },
+  filterButtonText: {
+    marginLeft: 5,
+    color: "#007AFF",
   },
   infoContainer: {
     flex: 1,
-    padding: 20,
+    padding: 10,
+    alignItems: "center",
   },
   infoItem: {
     flexDirection: "row",
@@ -205,6 +264,11 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     color: "#333333",
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

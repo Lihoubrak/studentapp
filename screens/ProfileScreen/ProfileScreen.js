@@ -14,38 +14,45 @@ import { fetchUserToken } from "../../utils";
 import { useAuthContext } from "../../contexts/AuthContext";
 import axios from "axios";
 import { ModalEditProfile } from "../../components";
-
+import { useNavigation } from "@react-navigation/native";
 const ProfileScreen = () => {
   const [user, setUser] = useState(null);
-  const { auth } = useAuthContext();
   const [refreshing, setRefreshing] = useState(false);
   const [isModalEdit, setIsModalEdit] = useState(false);
+  const { axiosInstanceWithAuth } = useAuthContext();
+  const navigation = useNavigation();
+
   useEffect(() => {
     fetchData();
-  }, [auth]);
+  }, []);
+
   const fetchData = async () => {
     try {
-      const decodedJWT = await fetchUserToken(auth);
-      if (decodedJWT) {
-        const res = await axios.get(
-          `http://192.168.1.4:3000/users/v1/${decodedJWT?.id}/detail`
-        );
-        setUser(res.data);
-      }
+      const res = await axiosInstanceWithAuth.get(`/users/v1/detail`);
+      setUser(res.data);
     } catch (error) {
       console.error("Error fetching user:", error);
     }
   };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
   };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("setting")}
+          style={styles.menuIconContainer}
+        >
+          <MaterialCommunityIcons name="cog" size={25} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollViewContainer}
         showsVerticalScrollIndicator={false}
@@ -59,15 +66,18 @@ const ProfileScreen = () => {
               source={require("../../assets/icons/angkorwat.jpg")}
               style={styles.coverImage}
             />
+          </View>
+          <View style={styles.profileContainer}>
             <TouchableOpacity
               style={styles.buttonEdit}
               onPress={() => setIsModalEdit(true)}
             >
               <MaterialCommunityIcons name="pencil" size={20} color="#FFFFFF" />
             </TouchableOpacity>
-          </View>
-          <View style={styles.profileContainer}>
-            <Image source={{ uri: user?.avatar }} style={styles.profileImage} />
+            <Image
+              source={{ uri: user?.avatar.replace("localhost", "192.168.1.4") }}
+              style={styles.profileImage}
+            />
             <View style={styles.profileTextContainer}>
               <Text style={styles.profileTextName}>
                 {user?.firstName} {user?.lastName}
@@ -96,7 +106,7 @@ const ProfileScreen = () => {
                 color="#2E8B57"
               />
               <Text style={styles.detailLabel}>DEGREE:</Text>
-              <Text style={styles.detailValue}>Undergraduate</Text>
+              <Text style={styles.detailValue}>{user?.degree}</Text>
             </View>
             <View style={styles.detailItem}>
               <MaterialCommunityIcons
@@ -105,7 +115,7 @@ const ProfileScreen = () => {
                 color="#FFA500"
               />
               <Text style={styles.detailLabel}>MAJOR:</Text>
-              <Text style={styles.detailValue}>Computer Science</Text>
+              <Text style={styles.detailValue}>{user?.Major.majorName}</Text>
             </View>
             <View style={styles.detailItem}>
               <MaterialCommunityIcons name="qrcode" size={20} color="#FFA500" />
@@ -139,6 +149,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+  menuIconContainer: {
+    position: "absolute",
+    right: 20,
+    top: 50,
+  },
   headerContainer: {
     backgroundColor: "#4e74f9",
     paddingTop: 50,
@@ -146,26 +161,20 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     color: "white",
     fontWeight: "bold",
+    textAlign: "center",
   },
+
   contentContainer: {
     alignItems: "center",
     position: "relative",
   },
   coverContainer: {},
-  buttonEdit: {
-    position: "absolute",
-    top: 93,
-    left: 88,
-    backgroundColor: "red",
-    padding: 1,
-    borderRadius: 5,
-    zIndex: 10,
-  },
   coverImage: {
     width: windowWidth,
     height: windowHeight * 0.2,
@@ -188,6 +197,16 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.5,
     shadowRadius: 5,
+    zIndex: 10,
+  },
+  buttonEdit: {
+    position: "absolute",
+    top: 69,
+    left: 75,
+    backgroundColor: "red",
+    padding: 1,
+    borderRadius: 5,
+    zIndex: 10,
   },
   profileImage: {
     width: 80,
@@ -223,10 +242,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#EEE",
     paddingVertical: 10,
-    flexDirection: "row", // Added to ensure the label and value are horizontally aligned
+    flexDirection: "row",
   },
   detailLabel: {
-    flex: 1, // Added to make label occupy 1/3 of the width
+    flex: 1,
     fontWeight: "bold",
     marginRight: 5,
     fontSize: 16,
@@ -234,14 +253,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   detailValue: {
-    flex: 2, // Added to make value occupy 2/3 of the width
+    flex: 2,
     color: "#666",
     fontSize: 16,
-    flexWrap: "wrap", // Added to allow text to wrap onto the next line if it exceeds the width
+    flexWrap: "wrap",
   },
   qrCodeImage: {
-    width: 100, // Adjust width as needed
-    height: 100, // Adjust height as needed
-    resizeMode: "contain", // or "cover", "stretch" depending on the desired behavior
+    width: 100,
+    height: 100,
+    resizeMode: "contain",
   },
 });

@@ -6,42 +6,69 @@ import {
   TouchableOpacity,
   View,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import { Picker } from "@react-native-picker/picker";
-import axios from "axios";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { ModalPickerYear } from "../../components";
 
 const EventScreen = () => {
   const navigation = useNavigation();
+  const { axiosInstance } = useAuthContext();
   const [selectedYear, setSelectedYear] = useState(
     new Date().getFullYear().toString()
   );
-  const [event, setEvent] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [loading, setLoading] = useState(true); // New state to track loading
+
   useEffect(() => {
-    const fetchEvent = async () => {
-      const res = await axios(
-        `http://192.168.1.4:3000/events/v9/allevent?year=${selectedYear}`
-      );
-      setEvent(res.data);
+    const fetchEvents = async () => {
+      setLoading(true); // Set loading to true when starting fetch
+      try {
+        const res = await axiosInstance.get(
+          `/events/v9/allevent?year=${selectedYear}`
+        );
+        setEvents(res.data);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      } finally {
+        setLoading(false); // Set loading to false when fetch completes
+      }
     };
-    fetchEvent();
+    fetchEvents();
   }, [selectedYear]);
 
   const handleClickEvent = (event) => {
     navigation.navigate("detailevent", { eventId: event.id });
   };
+
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.itemContainer}
+      style={[styles.itemContainer, events.length > 1 ? { flex: 1 } : null]}
       onPress={() => handleClickEvent(item)}
     >
-      <Image source={{ uri: item.eventImage }} style={styles.eventImage} />
+      <Image
+        source={{ uri: item.eventImage.replace("localhost", "192.168.1.4") }}
+        style={styles.eventImage}
+      />
       <Text style={styles.eventTitle}>{item.eventName}</Text>
       <Text style={styles.eventLocation}>{item.eventLocation}</Text>
-      <Text style={styles.eventDate}>{item.eventDate}</Text>
+      <Text style={styles.eventDate}>
+        {new Date(item.eventDate._seconds * 1000).toLocaleDateString()}
+      </Text>
     </TouchableOpacity>
   );
+
+  // Conditional rendering based on loading state
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4e74f9" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -55,28 +82,33 @@ const EventScreen = () => {
         <Text style={styles.headerTitle}>Event</Text>
       </View>
       <View style={styles.pickerContainer}>
-        <View style={styles.pickerContainer2}>
-          <Picker
-            selectedValue={selectedYear}
-            onValueChange={(itemValue, itemIndex) => setSelectedYear(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item
-              label={new Date().getFullYear().toString()}
-              value={new Date().getFullYear().toString()}
-            />
-            <Picker.Item label="2022" value="2022" />
-            <Picker.Item label="2023" value="2023" />
-          </Picker>
-        </View>
+        <TouchableOpacity
+          onPress={() => setShowPicker(true)}
+          style={styles.filterButton}
+        >
+          <MaterialCommunityIcons name="filter" size={20} color="#007AFF" />
+          <Text style={styles.filterButtonText}>Filter Year</Text>
+        </TouchableOpacity>
+        <Text style={[styles.filterButtonText, { color: "#666" }]}>
+          {selectedYear}
+        </Text>
       </View>
       <FlatList
-        data={event}
+        data={events}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
+      />
+      <ModalPickerYear
+        showPicker={showPicker}
+        setShowPicker={setShowPicker}
+        selectedYear={selectedYear}
+        setSelectedYear={(year) => {
+          setSelectedYear(year);
+          setShowPicker(false); // Close the picker modal when a year is selected
+        }}
       />
     </View>
   );
@@ -87,7 +119,7 @@ export default EventScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#eee",
   },
   headerContainer: {
     backgroundColor: "#4e74f9",
@@ -117,7 +149,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 8,
     alignItems: "center",
-    flex: 1,
     elevation: 3,
   },
   eventImage: {
@@ -153,24 +184,28 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: "white",
-    elevation: 5,
+    backgroundColor: "#fff",
   },
-  pickerContainer2: {
+  filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 8,
-    // paddingVertical: 8,
-    // paddingHorizontal: 12,
-    flex: 1,
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "#E5E5E5",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
-  picker: {
-    width: "100%",
+  filterButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

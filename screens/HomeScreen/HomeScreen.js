@@ -14,6 +14,22 @@ import { useAuthContext } from "../../contexts/AuthContext";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  // Get the current hour
+  const currentHour = new Date().getHours();
+
+  // Determine the greeting based on the current hour
+  let greeting;
+  if (currentHour < 5) {
+    greeting = "Good Night";
+  } else if (currentHour < 12) {
+    greeting = "Good Morning";
+  } else if (currentHour < 18) {
+    greeting = "Good Afternoon";
+  } else if (currentHour < 21) {
+    greeting = "Good Evening";
+  } else {
+    greeting = "Good Night";
+  }
   const BottomIcon = [
     { title: "Dormitory", image: require("../../assets/icons/dormitory.png") },
     { title: "School", image: require("../../assets/icons/school.png") },
@@ -26,15 +42,20 @@ const HomeScreen = () => {
     { title: "Water", image: require("../../assets/icons/water.png") },
     { title: "Heathcare", image: require("../../assets/icons/heathcare.png") },
     { title: "Leader", image: require("../../assets/icons/leader.png") },
+    // { title: "Motor", image: require("../../assets/icons/motor.png") },
+    // { title: "Find Love", image: require("../../assets/icons/love.png") },
   ];
-  const { setAuth } = useAuthContext();
+
   const handleButtonClick = (title) => {
     if (title === "Dormitory") navigation.navigate("dorm");
-    if (title === "School") setAuth("");
+    // if (title === "School") ;
     if (title === "Passport") navigation.navigate("passport");
     if (title === "Electrical") navigation.navigate("electrical");
     if (title === "Water") navigation.navigate("water");
     if (title === "Event") navigation.navigate("event");
+    if (title === "Leader") navigation.navigate("leader");
+    if (title === "Heathcare") navigation.navigate("healthcare");
+    if (title === "School") navigation.navigate("school");
   };
   const renderImageButtom = ({ item }) => {
     return (
@@ -49,7 +70,6 @@ const HomeScreen = () => {
       </TouchableOpacity>
     );
   };
-  console.log("HomeScreen");
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -60,7 +80,7 @@ const HomeScreen = () => {
           />
           <View style={styles.greetingContainer}>
             <Text style={styles.greetingText}>Hello,</Text>
-            <Text style={styles.greetingText}>Good Morning</Text>
+            <Text style={styles.greetingText}>{greeting}</Text>
           </View>
         </View>
         <View style={styles.searchBar}>
@@ -89,7 +109,7 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#eee",
   },
   headerContainer: {
     backgroundColor: "#4e74f9",

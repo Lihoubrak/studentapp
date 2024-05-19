@@ -9,25 +9,30 @@ import {
   TouchableOpacity,
   Dimensions,
 } from "react-native";
+import { useAuthContext } from "../../contexts/AuthContext";
 
-const ModalBuyTicketEvent = ({ modalVisible, setModalVisible }) => {
+const ModalBuyTicketEvent = ({ modalVisible, setModalVisible, eventId }) => {
   const [ticketCount, setTicketCount] = useState("");
-
+  const { axiosInstanceWithAuth, userIdFromToken } = useAuthContext();
   // Function to handle cancel button click
   const handleCancel = () => {
-    // Close the modal
     setModalVisible(false);
     setTicketCount("");
   };
-
   // Function to handle submit button click
-  const handleSubmit = () => {
-    // Add your logic here for handling ticket purchase
-    // For example, you can send the number of tickets to a server
-    // and handle the purchase process
-    // After handling the purchase, you can close the modal
-    setModalVisible(false);
-    setTicketCount("");
+  const handleSubmit = async () => {
+    try {
+      const res = await axiosInstanceWithAuth.post("/ticketevents/v17/create", {
+        userId: userIdFromToken,
+        eventId,
+        numberOfTicket: ticketCount,
+      });
+      setModalVisible(false);
+      setTicketCount(""); // Clear the ticketCount state after successful submission
+    } catch (error) {
+      console.error("Error creating ticket event:", error);
+      // Handle any errors here, such as displaying an error message to the user
+    }
   };
 
   return (
@@ -45,7 +50,7 @@ const ModalBuyTicketEvent = ({ modalVisible, setModalVisible }) => {
           <TextInput
             style={styles.input}
             placeholder="Number of tickets"
-            placeholderTextColor="#999999"
+            placeholderTextColor="#666"
             keyboardType="numeric"
             onChangeText={(text) => setTicketCount(text)}
             value={ticketCount}

@@ -8,12 +8,18 @@ import {
   TextInput,
   Image,
   Button,
+  Alert,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { Platform } from "react-native";
 
 const ModalEditProfile = ({ isModalEdit, setIsModalEdit }) => {
   const [profileImage, setProfileImage] = useState(null);
-
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const { axiosInstanceWithAuth } = useAuthContext();
   const handleImageUpload = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
@@ -29,54 +35,83 @@ const ModalEditProfile = ({ isModalEdit, setIsModalEdit }) => {
   const handleCloseModal = () => {
     setIsModalEdit(false);
     setProfileImage(null);
+    setPhoneNumber("");
+    setEmail("");
   };
 
-  const handleSaveChanges = () => {
-    // Add functionality to save changes
+  const handleSaveChanges = async () => {
+    try {
+      const response = await axiosInstanceWithAuth.put("/users/v1/edit", {
+        avatar: profileImage,
+        phoneNumber,
+        email,
+      });
+
+      if (response.status === 200) {
+        Alert.alert("Success", "Profile updated successfully");
+        handleCloseModal();
+      } else {
+        Alert.alert("Error", "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Internal server error");
+    }
   };
 
   return (
-    <Modal visible={isModalEdit} transparent={true} animationType="slide">
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.profileImageContainer}>
-            {profileImage ? (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profileImage}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <Modal visible={isModalEdit} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.profileImageContainer}>
+              {profileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <Text style={styles.noImageText}>No Image Selected</Text>
+              )}
+              <Button title="Upload Image" onPress={handleImageUpload} />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Phone Number:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+                placeholderTextColor="#666"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
               />
-            ) : (
-              <Text style={styles.noImageText}>No Image Selected</Text>
-            )}
-            <Button title="Upload Image" onPress={handleImageUpload} />
-          </View>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter phone number"
-              keyboardType="phone-pad"
-            />
-          </View>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email Address:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter email address"
-              keyboardType="email-address"
-            />
-          </View>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={handleCloseModal}>
-              <Text style={styles.buttonText}>Close</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSaveChanges}>
-              <Text style={styles.buttonText}>Save</Text>
-            </TouchableOpacity>
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email Address:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter email address"
+                keyboardType="email-address"
+                placeholderTextColor="#666"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity onPress={handleCloseModal}>
+                <Text style={styles.buttonText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveChanges}>
+                <Text style={styles.buttonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
 

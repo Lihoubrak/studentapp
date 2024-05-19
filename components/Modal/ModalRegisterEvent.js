@@ -4,32 +4,98 @@ import {
   Text,
   View,
   Modal,
-  TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   Dimensions,
+  Alert,
 } from "react-native";
+import { useAuthContext } from "../../contexts/AuthContext";
+import { useStripe } from "@stripe/stripe-react-native";
 
-const ModalRegisterEvent = ({ modalVisible, setModalVisible }) => {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+const ModalRegisterEvent = ({ modalVisible, setModalVisible, eventId }) => {
+  const { axiosInstance, axiosInstanceWithAuth, userIdFromToken } =
+    useAuthContext();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [loading, setLoading] = useState(false);
 
-  // Function to handle cancel button click
   const handleCancel = () => {
-    // Close the modal
     setModalVisible(false);
-    setFullName("");
-    setEmail("");
   };
 
-  // Function to handle submit button click
-  const handleSubmit = () => {
-    // Add your logic here for handling event registration
-    // For example, you can send the user's details to a server
-    // and handle the registration process
-    // After handling the registration, you can close the modal
-    setModalVisible(false);
-    setFullName("");
-    setEmail("");
+  const handleSubmit = async () => {
+    try {
+      await axiosInstance.post("/participantEvents/v11/create", {
+        userId: userIdFromToken,
+        eventId,
+        typePayMoney: "Online",
+      });
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Error registering for event:", error);
+    }
+  };
+
+  const checkUserRegistration = async () => {
+    try {
+      const registrationCheck = await axiosInstanceWithAuth.post(
+        "/participantEvents/v11/check",
+        { eventId }
+      );
+
+      return registrationCheck.data.alreadyRegistered;
+    } catch (error) {
+      Alert.alert("Registration", "You are already registered for this event.");
+      return true; // Assuming user is already registered if an error occurs
+    }
+  };
+
+  const handlePayment = async () => {
+    setLoading(true);
+    try {
+      // Check if the user is already registered for the event
+      const alreadyRegistered = await checkUserRegistration();
+      if (!alreadyRegistered) {
+        // If the user is not registered, proceed with the payment process
+        const payment = await axiosInstance.post("/payments/v21/intents", {
+          eventId,
+        });
+
+        // Initialize the payment sheet with the client secret received from the server
+        const { error: initError } = await initPaymentSheet({
+          paymentIntentClientSecret: payment.data.clientSecret,
+          merchantDisplayName: "studentApp",
+        });
+
+        // Check for initialization error
+        if (initError) {
+          console.error("Error initializing payment sheet:", initError);
+          setLoading(false); // Stop loading state
+          return;
+        }
+        // Present the payment sheet to the user
+        const { error: paymentSheetError } = await presentPaymentSheet();
+
+        // Check if there's an error presenting the payment sheet
+        if (paymentSheetError) {
+          // If the payment was canceled by the user
+          if (paymentSheetError.code === "Canceled") {
+            console.log("Payment was canceled by the user."); // Log the cancellation
+          } else {
+            // Log other payment sheet errors
+            console.error("Error presenting payment sheet:", paymentSheetError);
+          }
+          setLoading(false); // Stop loading state
+          return;
+        }
+
+        // If payment is successful, proceed to handle registration
+        await handleSubmit();
+      }
+    } catch (error) {
+      console.error("Error handling payment:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,9 +126,14 @@ const ModalRegisterEvent = ({ modalVisible, setModalVisible }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
-              onPress={handleSubmit}
+              onPress={handlePayment}
+              disabled={loading}
             >
-              <Text style={styles.buttonText}>Submit</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Submit</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -93,14 +164,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    width: "80%",
   },
   modalButtonContainer: {
     flexDirection: "row",

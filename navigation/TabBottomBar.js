@@ -24,6 +24,9 @@ const TabBottomBar = () => {
       inactiveColor="#8e8e8e"
       barStyle={{
         backgroundColor: "#ffffff",
+
+        borderTopColor: "#eee",
+        borderTopWidth: 1,
       }}
     >
       <Tab.Screen
