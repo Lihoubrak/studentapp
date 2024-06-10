@@ -5,33 +5,92 @@ import {
   View,
   Modal,
   TextInput,
-  Button,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useAuthContext } from "../../contexts/AuthContext";
+import {
+  initPaymentSheet,
+  presentPaymentSheet,
+} from "@stripe/stripe-react-native";
 
 const ModalBuyTicketEvent = ({ modalVisible, setModalVisible, eventId }) => {
   const [ticketCount, setTicketCount] = useState("");
+  const [loading, setLoading] = useState(false);
   const { axiosInstanceWithAuth, userIdFromToken } = useAuthContext();
+
   // Function to handle cancel button click
   const handleCancel = () => {
     setModalVisible(false);
     setTicketCount("");
   };
+
   // Function to handle submit button click
   const handleSubmit = async () => {
     try {
       const res = await axiosInstanceWithAuth.post("/ticketevents/v17/create", {
         userId: userIdFromToken,
         eventId,
-        numberOfTicket: ticketCount,
+        numberOfTicket: parseFloat(ticketCount),
+        typePayMoney: "Online",
       });
       setModalVisible(false);
       setTicketCount(""); // Clear the ticketCount state after successful submission
     } catch (error) {
       console.error("Error creating ticket event:", error);
       // Handle any errors here, such as displaying an error message to the user
+    }
+  };
+
+  // Function to handle payment process
+  const handlePayment = async () => {
+    setLoading(true);
+    try {
+      // Create a payment intent for the ticket purchase
+      const payment = await axiosInstanceWithAuth.post(
+        "/payments/v21/buy-ticket",
+        {
+          eventId,
+          numberOfTicket: parseFloat(ticketCount), // Ensure ticket count is a number
+        }
+      );
+
+      // Initialize the payment sheet with the client secret received from the server
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: payment.data.clientSecret,
+        merchantDisplayName: "studentApp",
+      });
+
+      // Check for initialization error
+      if (initError) {
+        console.error("Error initializing payment sheet:", initError);
+        setLoading(false); // Stop loading state
+        return;
+      }
+
+      // Present the payment sheet to the user
+      const { error: paymentSheetError } = await presentPaymentSheet();
+
+      // Check if there's an error presenting the payment sheet
+      if (paymentSheetError) {
+        // If the payment was canceled by the user
+        if (paymentSheetError.code === "Canceled") {
+          console.log("Payment was canceled by the user."); // Log the cancellation
+        } else {
+          // Log other payment sheet errors
+          console.error("Error presenting payment sheet:", paymentSheetError);
+        }
+        setLoading(false); // Stop loading state
+        return;
+      }
+
+      // If payment is successful, proceed to handle ticket purchase submission
+      await handleSubmit();
+    } catch (error) {
+      console.error("Error handling payment:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,9 +124,14 @@ const ModalBuyTicketEvent = ({ modalVisible, setModalVisible, eventId }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.submitButton]}
-              onPress={handleSubmit}
+              onPress={handlePayment}
+              disabled={loading} // Disable button during loading
             >
-              <Text style={styles.buttonText}>Submit</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Submit</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

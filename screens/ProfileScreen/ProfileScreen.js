@@ -75,7 +75,9 @@ const ProfileScreen = () => {
               <MaterialCommunityIcons name="pencil" size={20} color="#FFFFFF" />
             </TouchableOpacity>
             <Image
-              source={{ uri: user?.avatar.replace("localhost", "192.168.1.4") }}
+              source={{
+                uri: user?.avatar.replace("localhost", "192.168.1.4"),
+              }}
               style={styles.profileImage}
             />
             <View style={styles.profileTextContainer}>

@@ -24,7 +24,7 @@ const ModalRegisterEvent = ({ modalVisible, setModalVisible, eventId }) => {
 
   const handleSubmit = async () => {
     try {
-      await axiosInstance.post("/participantEvents/v11/create", {
+      await axiosInstance.post("/participantevents/v11/create", {
         userId: userIdFromToken,
         eventId,
         typePayMoney: "Online",
@@ -38,7 +38,7 @@ const ModalRegisterEvent = ({ modalVisible, setModalVisible, eventId }) => {
   const checkUserRegistration = async () => {
     try {
       const registrationCheck = await axiosInstanceWithAuth.post(
-        "/participantEvents/v11/check",
+        "/participantevents/v11/check",
         { eventId }
       );
 
@@ -56,9 +56,12 @@ const ModalRegisterEvent = ({ modalVisible, setModalVisible, eventId }) => {
       const alreadyRegistered = await checkUserRegistration();
       if (!alreadyRegistered) {
         // If the user is not registered, proceed with the payment process
-        const payment = await axiosInstance.post("/payments/v21/intents", {
-          eventId,
-        });
+        const payment = await axiosInstanceWithAuth.post(
+          "/payments/v21/intents",
+          {
+            eventId,
+          }
+        );
 
         // Initialize the payment sheet with the client secret received from the server
         const { error: initError } = await initPaymentSheet({
