@@ -25,12 +25,12 @@ const DormitoryScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [materials, setMaterials] = useState({
-    cup: false,
-    pillow: false,
-    table: false,
-    lamp: false,
-    mattress: false,
-    pillowcase: false,
+    Cup: false,
+    Lamp: false,
+    Pillow: false,
+    Table: false,
+    Pillowcase: false,
+    Mattress: false,
   });
 
   useEffect(() => {
@@ -114,7 +114,7 @@ const DormitoryScreen = () => {
           <View style={styles.dormInfoContainer}>
             <MaterialCommunityIcons name="bed" size={50} color="#FF5733" />
             <Text style={styles.dormTitle}>
-              Dormitory {occupants[0]?.Room?.Dormitory.dormName}
+              {occupants[0]?.Room?.Dormitory.dormName}
             </Text>
           </View>
 
@@ -137,35 +137,35 @@ const DormitoryScreen = () => {
               <View style={styles.supportColumn}>
                 <SupportItem
                   label="Cup"
-                  checked={materials.cup}
-                  onPress={() => handleToggleMaterial("cup")}
+                  checked={materials.Cup}
+                  onPress={() => handleToggleMaterial("Cup")}
                 />
                 <SupportItem
                   label="Pillow"
-                  checked={materials.pillow}
-                  onPress={() => handleToggleMaterial("pillow")}
+                  checked={materials.Pillow}
+                  onPress={() => handleToggleMaterial("Pillow")}
                 />
                 <SupportItem
                   label="Table"
-                  checked={materials.table}
-                  onPress={() => handleToggleMaterial("table")}
+                  checked={materials.Table}
+                  onPress={() => handleToggleMaterial("Table")}
                 />
               </View>
               <View style={styles.supportColumn}>
                 <SupportItem
                   label="Lamp"
-                  checked={materials.lamp}
-                  onPress={() => handleToggleMaterial("lamp")}
+                  checked={materials.Lamp}
+                  onPress={() => handleToggleMaterial("Lamp")}
                 />
                 <SupportItem
                   label="Mattress"
-                  checked={materials.mattress}
-                  onPress={() => handleToggleMaterial("mattress")}
+                  checked={materials.Mattress}
+                  onPress={() => handleToggleMaterial("Mattress")}
                 />
                 <SupportItem
                   label="Pillowcase"
-                  checked={materials.pillowcase}
-                  onPress={() => handleToggleMaterial("pillowcase")}
+                  checked={materials.Pillowcase}
+                  onPress={() => handleToggleMaterial("Pillowcase")}
                 />
               </View>
             </View>

@@ -48,7 +48,10 @@ const LeaderScreen = () => {
       onPress={() => handleClickDetail(item)}
     >
       <View style={styles.avatarContainer}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <Image
+          source={{ uri: item.avatar.replace("localhost", "192.168.1.4") }}
+          style={styles.avatar}
+        />
       </View>
       <View style={styles.detailsContainer}>
         <Text style={styles.name}>

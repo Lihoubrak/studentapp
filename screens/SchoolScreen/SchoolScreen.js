@@ -41,7 +41,10 @@ const SchoolScreen = () => {
       style={styles.studentItem}
       onPress={() => navigateToProfile(item.id)}
     >
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image
+        source={{ uri: item.avatar.replace("localhost", "192.168.1.4") }}
+        style={styles.avatar}
+      />
       <Text style={styles.studentName}>
         {item.firstName} {item.lastName}
       </Text>
@@ -73,7 +76,12 @@ const SchoolScreen = () => {
       </View>
       <View style={styles.contentContainer}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: major.majorImage }} style={styles.image} />
+          <Image
+            source={{
+              uri: major.majorImage.replace("localhost", "192.168.1.4"),
+            }}
+            style={styles.image}
+          />
           <Text style={styles.sectionTitle}>Major: {major.majorName}</Text>
         </View>
         <FlatList
