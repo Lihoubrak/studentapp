@@ -50,7 +50,9 @@ const EventScreen = () => {
       onPress={() => handleClickEvent(item)}
     >
       <Image
-        source={{ uri: item.eventImage.replace("localhost", "192.168.1.4") }}
+        source={{
+          uri: item.eventImage.replace("localhost", "192.168.122.130"),
+        }}
         style={styles.eventImage}
       />
       <Text style={styles.eventTitle}>{item.eventName}</Text>

@@ -121,7 +121,7 @@ const ModalCreatePassport = ({ isVisible, onClose, fetchData, passportId }) => {
         });
       }
       const response = await axiosInstanceWithAuth.put(
-        `http://192.168.1.4:3000/passports/v6/edit/${passportId}`,
+        `https://studentbackend-592f.onrender.com/passports/v6/edit/${passportId}`,
         formDataToSend,
         {
           headers: {

@@ -161,7 +161,10 @@ const MessageChat = () => {
           <View style={styles.userInfo}>
             <Image
               source={{
-                uri: userReceiver?.avatar.replace("localhost", "192.168.1.4"),
+                uri: userReceiver?.avatar.replace(
+                  "localhost",
+                  "192.168.122.130"
+                ),
               }}
               style={styles.avatar}
             />

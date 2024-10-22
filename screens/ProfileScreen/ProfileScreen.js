@@ -76,7 +76,7 @@ const ProfileScreen = () => {
             </TouchableOpacity>
             <Image
               source={{
-                uri: user?.avatar.replace("localhost", "192.168.1.4"),
+                uri: user?.avatar.replace("localhost", "192.168.122.130"),
               }}
               style={styles.profileImage}
             />

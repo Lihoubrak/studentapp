@@ -49,7 +49,7 @@ const LeaderScreen = () => {
     >
       <View style={styles.avatarContainer}>
         <Image
-          source={{ uri: item.avatar.replace("localhost", "192.168.1.4") }}
+          source={{ uri: item.avatar.replace("localhost", "192.168.122.130") }}
           style={styles.avatar}
         />
       </View>

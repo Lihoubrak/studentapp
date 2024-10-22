@@ -132,7 +132,9 @@ const MessageScreen = () => {
       <TouchableOpacity onPress={() => handleClickChat(item)}>
         <View style={styles.chatItem}>
           <Image
-            source={{ uri: user.avatar?.replace("localhost", "192.168.1.4") }}
+            source={{
+              uri: user.avatar?.replace("localhost", "192.168.122.130"),
+            }}
             style={styles.avatar}
           />
           <View style={styles.chatContent}>

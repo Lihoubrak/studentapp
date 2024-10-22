@@ -106,7 +106,7 @@ const PassportScreen = () => {
       <View style={styles.passportImageContainer}>
         <Image
           source={{
-            uri: passportInfo?.image.replace("localhost", "192.168.1.4"),
+            uri: passportInfo?.image.replace("localhost", "192.168.122.130"),
           }}
           style={styles.passportImage}
           alt="Passport Image"

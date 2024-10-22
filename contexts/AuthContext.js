@@ -51,14 +51,14 @@ const AuthProvider = ({ children }) => {
   }
 
   const axiosInstanceWithAuth = axios.create({
-    baseURL: "http://192.168.1.4:3000",
+    baseURL: "https://studentbackend-592f.onrender.com",
     headers: {
       Authorization: `Bearer ${auth}`,
     },
   });
 
   const axiosInstance = axios.create({
-    baseURL: "http://192.168.1.4:3000",
+    baseURL: "https://studentbackend-592f.onrender.com",
   });
 
   return (

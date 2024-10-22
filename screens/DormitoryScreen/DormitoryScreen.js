@@ -86,7 +86,7 @@ const DormitoryScreen = () => {
     >
       <Image
         style={styles.profile}
-        source={{ uri: item.avatar.replace("localhost", "192.168.1.4") }}
+        source={{ uri: item.avatar.replace("localhost", "192.168.122.130") }}
       />
       <Text
         style={styles.occupantName}

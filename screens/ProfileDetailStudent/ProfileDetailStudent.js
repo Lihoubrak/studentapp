@@ -61,7 +61,9 @@ const ProfileDetailStudent = () => {
         </View>
         <View style={styles.profileContainer}>
           <Image
-            source={{ uri: user?.avatar.replace("localhost", "192.168.1.4") }}
+            source={{
+              uri: user?.avatar.replace("localhost", "192.168.122.130"),
+            }}
             style={styles.profileImage}
           />
           <View style={styles.profileTextContainer}>
